@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { pickLead } from "./cluster";
 import { BIAS_LABEL, getSource } from "./sources";
 import type { Article, StorySummary } from "./types";
 
@@ -45,23 +46,16 @@ function formatArticles(articles: Article[]): string {
 
 /** Builds a summary from the articles themselves, used when the LLM is unavailable. */
 export function extractiveSummary(articles: Article[]): StorySummary {
-  const centerFirst = [...articles].sort((a, b) => rank(a) - rank(b));
-  const lead = centerFirst[0];
-  const longest = articles.reduce((best, a) =>
-    a.description.length > best.description.length ? a : best,
-  );
+  // Headline and summary come from the same article: the one most typical of
+  // the story, so an outlier article never sets the headline.
+  const lead = pickLead(articles);
   return {
     headline: lead.title,
-    summary: longest.description || lead.title,
+    summary: lead.description || lead.title,
     leftFraming: null,
     rightFraming: null,
     generated: false,
   };
-}
-
-function rank(a: Article): number {
-  const bias = getSource(a.sourceId)?.bias;
-  return bias === "center" ? 0 : 1;
 }
 
 export async function summarizeStory(articles: Article[]): Promise<StorySummary> {
