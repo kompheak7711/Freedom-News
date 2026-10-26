@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { clusterArticles, pickLead, tokenize } from "../cluster";
 import { computeCoverage, findBlindspot, percentages } from "../coverage";
 import { toArticles } from "../ingest";
+import { articleLang } from "../khmer";
 import { getSource } from "../sources";
 import type { Article } from "../types";
 
@@ -13,7 +14,7 @@ const now = Date.parse("2026-10-26T12:00:00Z");
 const rows = JSON.parse(
   readFileSync(path.join(__dirname, "../../../fixtures/demo-articles.json"), "utf8"),
 ) as DemoRow[];
-const demo: Article[] = rows.map((r, i) => ({
+const allDemo: Article[] = rows.map((r, i) => ({
   id: String(i),
   sourceId: r.sourceId,
   title: r.title,
@@ -21,6 +22,8 @@ const demo: Article[] = rows.map((r, i) => ({
   url: `https://example.com/${i}`,
   publishedAt: new Date(now - r.minutesAgo * 60_000).toISOString(),
 }));
+// The clusterer only ever sees English articles (see buildStories).
+const demo = allDemo.filter((a) => articleLang(a) === "en");
 
 function article(sourceId: string, title: string, description = ""): Article {
   return { id: sourceId + title, sourceId, title, description, url: "u", publishedAt: new Date(now).toISOString() };
@@ -35,10 +38,10 @@ describe("tokenize", () => {
 });
 
 describe("clusterArticles", () => {
-  it("groups the demo fixture into its five stories", () => {
+  it("groups the demo fixture into its six English stories", () => {
     const clusters = clusterArticles(demo);
     const storyOf = (a: Article) => rows[Number(a.id)].story;
-    expect(clusters).toHaveLength(5);
+    expect(clusters).toHaveLength(6);
     for (const c of clusters) {
       expect(new Set(c.map(storyOf)).size).toBe(1);
     }
@@ -101,7 +104,7 @@ describe("coverage", () => {
       article("bbc", "c"),
       article("nypost", "d"),
     ]);
-    expect(cov).toEqual({ left: 1, center: 1, right: 1, total: 3 });
+    expect(cov).toEqual({ left: 1, center: 1, right: 1, total: 3, unrated: 0 });
     expect(percentages(cov)).toEqual({ left: 33, center: 34, right: 33 });
   });
 
