@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { clusterArticles, tokenize } from "../cluster";
+import { clusterArticles, pickLead, tokenize } from "../cluster";
 import { computeCoverage, findBlindspot, percentages } from "../coverage";
 import { toArticles } from "../ingest";
 import { getSource } from "../sources";
@@ -22,9 +22,11 @@ const demo: Article[] = rows.map((r, i) => ({
   publishedAt: new Date(now - r.minutesAgo * 60_000).toISOString(),
 }));
 
-function article(sourceId: string, title: string): Article {
-  return { id: sourceId + title, sourceId, title, description: "", url: "u", publishedAt: new Date(now).toISOString() };
+function article(sourceId: string, title: string, description = ""): Article {
+  return { id: sourceId + title, sourceId, title, description, url: "u", publishedAt: new Date(now).toISOString() };
 }
+
+const clusterOf = (clusters: Article[][], a: Article) => clusters.find((c) => c.includes(a));
 
 describe("tokenize", () => {
   it("drops stopwords, short tokens, numbers and accents", () => {
@@ -48,6 +50,46 @@ describe("clusterArticles", () => {
       article("fox", "Senate passes farm subsidy bill"),
     ]);
     expect(clusters).toHaveLength(2);
+  });
+
+  // Headlines from a live day of news that the first version grouped wrongly. The demo
+  // fixture is background so word rarity resembles a real day of news.
+  it("does not join stories that only share a famous name", () => {
+    const starlink = [
+      article("abc", "Ukraine disputes Musk's claim that its military violated Starlink's terms of service", "Musk claimed Ukraine used Starlink for offensive drone strikes."),
+      article("cnbc", "Ukraine disputes Elon Musk's claim that its military violated Starlink terms during drone operations", "Ukraine challenged Musk's claim that its military violated Starlink terms."),
+      article("cbs", "Elon Musk's Starlink and Starshield, and what they mean to Ukraine", "Here's what to know about Starlink and Starshield, the technologies Ukraine is relying on in the war against Russia."),
+    ];
+    const debt = article("cnbc", "SpaceX closes $40 billion debt deal for AI chips, Elon Musk says");
+    const neoclouds = article("cnbc", "Elon Musk says more than 200 neoclouds face 'guppy-level death'", "Investors are already questioning the debt-fueled expansion of neoclouds.");
+    const clusters = clusterArticles([...demo, ...starlink, debt, neoclouds]);
+    expect(clusterOf(clusters, starlink[0])).toEqual(expect.arrayContaining(starlink));
+    expect(clusterOf(clusters, starlink[0])).not.toContain(neoclouds);
+    expect(clusterOf(clusters, starlink[0])).not.toContain(debt);
+  });
+
+  it("ignores an outlet's recurring boilerplate such as a show name", () => {
+    // Shaped like CBS transcript headlines, where the show name outweighs the guest.
+    const show = (guest: string) =>
+      article("cbs", `Transcript: ${guest} on "Face the Nation with Margaret Brennan"`, `The transcript of the interview with ${guest} that aired on "Face the Nation with Margaret Brennan."`);
+    const tillis = show("Sen. Thom Tillis");
+    const hinojosa = show("Gina Hinojosa");
+    const crow = show("Rep. Jason Crow");
+    const clusters = clusterArticles([...demo, tillis, hinojosa, crow]);
+    expect(clusterOf(clusters, tillis)).toEqual([tillis]);
+    expect(clusterOf(clusters, hinojosa)).toEqual([hinojosa]);
+  });
+});
+
+describe("pickLead", () => {
+  it("picks the article most typical of the story, not an outlier", () => {
+    const lead = article("nbc", "Ukraine disputes Musk claim over Starlink terms", "Kyiv denies its military breached Starlink terms.");
+    const others = [
+      article("abc", "Ukraine disputes Musk claim it violated Starlink terms", "Ukraine says it did not breach Starlink terms."),
+      article("cnbc", "Musk claim on Starlink terms disputed by Ukraine", "Kyiv rejects Musk claim on Starlink terms."),
+      article("huffpost", "Musk says he was behind speed restriction", "Service restored to previous speeds."),
+    ];
+    expect(pickLead([others[2], lead, ...others.slice(0, 2)]).sourceId).not.toBe("huffpost");
   });
 });
 

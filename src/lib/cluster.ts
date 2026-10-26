@@ -1,3 +1,4 @@
+import { getSource } from "./sources";
 import type { Article } from "./types";
 
 const STOPWORDS = new Set(
@@ -28,14 +29,42 @@ function articleTokens(a: Article): string[] {
   return [...tokenize(a.title), ...tokenize(a.title), ...tokenize(a.description)];
 }
 
+/**
+ * Words an outlet repeats across many of its own articles but other outlets
+ * rarely use: show names ("Face the Nation"), feed footers ("appeared first
+ * on Breitbart"). They make an outlet's unrelated articles look alike.
+ */
+function sourceBoilerplate(articles: Article[], docs: string[][], df: Map<string, number>) {
+  const bySource = new Map<string, { n: number; df: Map<string, number> }>();
+  articles.forEach((a, i) => {
+    const entry = bySource.get(a.sourceId) ?? { n: 0, df: new Map<string, number>() };
+    entry.n += 1;
+    for (const t of new Set(docs[i])) entry.df.set(t, (entry.df.get(t) ?? 0) + 1);
+    bySource.set(a.sourceId, entry);
+  });
+  const boilerplate = new Map<string, Set<string>>();
+  for (const [sourceId, { n, df: sourceDf }] of bySource) {
+    const words = new Set<string>();
+    for (const [t, count] of sourceDf) {
+      const ownShare = count / (df.get(t) ?? count);
+      if (count >= 3 && count / n >= 0.1 && ownShare >= 0.7) words.add(t);
+    }
+    boilerplate.set(sourceId, words);
+  }
+  return boilerplate;
+}
+
 export function buildVectors(articles: Article[]): Vector[] {
   const docs = articles.map(articleTokens);
   const df = new Map<string, number>();
   for (const tokens of docs) {
     for (const t of new Set(tokens)) df.set(t, (df.get(t) ?? 0) + 1);
   }
+  const boilerplate = sourceBoilerplate(articles, docs, df);
   const n = docs.length;
-  return docs.map((tokens) => {
+  return docs.map((allTokens, i) => {
+    const skip = boilerplate.get(articles[i].sourceId);
+    const tokens = skip?.size ? allTokens.filter((t) => !skip.has(t)) : allTokens;
     const tf = new Map<string, number>();
     for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
     const vec: Vector = new Map();
@@ -63,8 +92,18 @@ export function cosine(a: Vector, b: Vector): number {
 }
 
 export interface ClusterOptions {
-  /** Minimum similarity between an article and a cluster to join it. */
+  /** Minimum similarity between an article and a cluster's centroid to join it. */
   threshold?: number;
+  /** An article may also join through a single very similar member. */
+  memberThreshold?: number;
+  /**
+   * Extra similarity required to join a cluster that already has an article
+   * from the same outlet. One outlet rarely runs several pieces on one event,
+   * so repeats usually mean a broad topic (a TV show, a campaign) not an event.
+   */
+  sameSourcePenalty?: number;
+  /** Minimum centroid similarity for two clusters to be merged afterwards. */
+  mergeThreshold?: number;
   /** Articles further apart in time than this never share a cluster. */
   maxSpanHours?: number;
 }
@@ -72,12 +111,14 @@ export interface ClusterOptions {
 /**
  * Groups articles about the same event, single-pass: each article joins the
  * most similar existing cluster above the threshold, or starts a new one.
- * Similarity to a cluster is the higher of its similarity to the centroid and
- * to the closest member, since outlets often word the same event differently.
  * Articles are processed oldest first so clusters grow around the first report.
+ * A merge pass then joins clusters that split around the same event.
  */
 export function clusterArticles(articles: Article[], options: ClusterOptions = {}): Article[][] {
-  const threshold = options.threshold ?? 0.2;
+  const threshold = options.threshold ?? 0.22;
+  const memberThreshold = options.memberThreshold ?? 0.4;
+  const sameSourcePenalty = options.sameSourcePenalty ?? 0.15;
+  const mergeThreshold = options.mergeThreshold ?? 0.28;
   const maxSpanMs = (options.maxSpanHours ?? 48) * 3600 * 1000;
 
   const order = articles
@@ -89,6 +130,7 @@ export function clusterArticles(articles: Article[], options: ClusterOptions = {
     members: Article[];
     vectors: Vector[];
     centroid: Vector;
+    sources: Set<string>;
     start: number;
   }
   const clusters: Cluster[] = [];
@@ -97,22 +139,28 @@ export function clusterArticles(articles: Article[], options: ClusterOptions = {
     const vec = vectors[i];
     const time = Date.parse(a.publishedAt);
     let best: Cluster | null = null;
-    let bestScore = threshold;
+    let bestMargin = 0;
     for (const c of clusters) {
       if (time - c.start > maxSpanMs) continue;
-      let score = cosine(vec, c.centroid);
-      for (const member of c.vectors) score = Math.max(score, cosine(vec, member));
-      if (score >= bestScore) {
+      const penalty = c.sources.has(a.sourceId) ? sameSourcePenalty : 0;
+      const centroidScore = cosine(vec, c.centroid) - threshold - penalty;
+      let memberScore = -Infinity;
+      for (const member of c.vectors) {
+        memberScore = Math.max(memberScore, cosine(vec, member) - memberThreshold - penalty);
+      }
+      const margin = Math.max(centroidScore, memberScore);
+      if (margin >= bestMargin) {
         best = c;
-        bestScore = score;
+        bestMargin = margin;
       }
     }
     if (best) {
       best.members.push(a);
       best.vectors.push(vec);
+      best.sources.add(a.sourceId);
       best.centroid = addToCentroid(best.centroid, vec, best.members.length);
     } else {
-      clusters.push({ members: [a], vectors: [vec], centroid: new Map(vec), start: time });
+      clusters.push({ members: [a], vectors: [vec], centroid: new Map(vec), sources: new Set([a.sourceId]), start: time });
     }
   }
 
@@ -126,10 +174,11 @@ export function clusterArticles(articles: Article[], options: ClusterOptions = {
         const a = clusters[x];
         const b = clusters[y];
         if (Math.abs(a.start - b.start) > maxSpanMs) continue;
-        if (cosine(a.centroid, b.centroid) < threshold) continue;
+        if (cosine(a.centroid, b.centroid) < mergeThreshold) continue;
         for (const [m, member] of b.members.entries()) {
           a.members.push(member);
           a.vectors.push(b.vectors[m]);
+          a.sources.add(member.sourceId);
           a.centroid = addToCentroid(a.centroid, b.vectors[m], a.members.length);
         }
         a.start = Math.min(a.start, b.start);
@@ -153,4 +202,36 @@ function addToCentroid(centroid: Vector, vec: Vector, size: number): Vector {
   norm = Math.sqrt(norm) || 1;
   for (const [t, w] of next) next.set(t, w / norm);
   return next;
+}
+
+/**
+ * The article most similar to the rest of its story (ties go to center
+ * outlets, which tend to word things neutrally). Used for the headline.
+ */
+export function pickLead(articles: Article[]): Article {
+  // Plain term counts, not TF-IDF: within one story the shared words are
+  // exactly the signal, and IDF over the story would zero them out.
+  const vectors = articles.map((a) => {
+    const vec: Vector = new Map();
+    for (const t of articleTokens(a)) vec.set(t, (vec.get(t) ?? 0) + 1);
+    let norm = 0;
+    for (const w of vec.values()) norm += w * w;
+    norm = Math.sqrt(norm) || 1;
+    for (const [t, w] of vec) vec.set(t, w / norm);
+    return vec;
+  });
+  let best = articles[0];
+  let bestScore = -Infinity;
+  articles.forEach((a, i) => {
+    let score = 0;
+    vectors.forEach((v, j) => {
+      if (i !== j) score += cosine(vectors[i], v);
+    });
+    if (getSource(a.sourceId)?.bias === "center") score += 0.01;
+    if (score > bestScore) {
+      best = a;
+      bestScore = score;
+    }
+  });
+  return best;
 }
