@@ -1,0 +1,89 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  closeDb,
+  getDb,
+  loadLatestSnapshot,
+  loadRecentArticles,
+  loadSummaries,
+  saveArticles,
+  saveSnapshot,
+  saveSummary,
+} from "../db";
+import { canReuseSummary, refreshFeed, type StoryFeed } from "../stories";
+import type { StorySummary } from "../types";
+
+const summary = (generated: boolean): StorySummary => ({
+  headline: "h",
+  summary: "s",
+  leftFraming: null,
+  rightFraming: null,
+  generated,
+});
+
+describe("canReuseSummary", () => {
+  it("reuses until the story grows by half", () => {
+    const stored = { articleCount: 4, summary: summary(true) };
+    expect(canReuseSummary(stored, 5, true)).toBe(true);
+    expect(canReuseSummary(stored, 6, true)).toBe(false);
+    expect(canReuseSummary(undefined, 3, true)).toBe(false);
+  });
+
+  it("replaces a fallback summary once the LLM is available", () => {
+    const stored = { articleCount: 4, summary: summary(false) };
+    expect(canReuseSummary(stored, 4, true)).toBe(false);
+    expect(canReuseSummary(stored, 4, false)).toBe(true);
+  });
+});
+
+// Runs against a real Postgres when TEST_DATABASE_URL is set, e.g.
+// TEST_DATABASE_URL=postgres://localhost:5432/news_test npm test
+const url = process.env.TEST_DATABASE_URL;
+
+describe.skipIf(!url)("postgres storage", () => {
+  beforeAll(async () => {
+    process.env.DATABASE_URL = url;
+    const db = (await getDb())!;
+    await db`truncate articles, story_summaries, feed_snapshots`;
+  });
+  afterAll(async () => {
+    await closeDb();
+    delete process.env.DATABASE_URL;
+    delete process.env.NEWS_DEMO;
+  });
+
+  it("upserts articles and loads only recent ones", async () => {
+    const db = (await getDb())!;
+    const now = Date.now();
+    const base = { sourceId: "bbc", description: "d", url: "https://x" };
+    await saveArticles(db, [
+      { ...base, id: "new", title: "New", publishedAt: new Date(now - 3600_000).toISOString() },
+      { ...base, id: "old", title: "Old", publishedAt: new Date(now - 72 * 3600_000).toISOString() },
+    ]);
+    await saveArticles(db, [{ ...base, id: "new", title: "New (updated)", publishedAt: new Date(now - 3600_000).toISOString() }]);
+    const recent = await loadRecentArticles(db, 48);
+    expect(recent.map((a) => [a.id, a.title])).toEqual([["new", "New (updated)"]]);
+  });
+
+  it("stores summaries and snapshots", async () => {
+    const db = (await getDb())!;
+    await saveSummary(db, "story1", 3, summary(true));
+    await saveSummary(db, "story1", 5, summary(true));
+    const stored = await loadSummaries(db, ["story1", "missing"]);
+    expect(stored.get("story1")).toEqual({ articleCount: 5, summary: summary(true) });
+    expect(stored.has("missing")).toBe(false);
+
+    await saveSnapshot(db, new Date().toISOString(), { hello: "world" });
+    expect(await loadLatestSnapshot(db)).toEqual({ hello: "world" });
+  });
+
+  it("refreshFeed persists summaries and a snapshot", async () => {
+    process.env.NEWS_DEMO = "1";
+    const feed = await refreshFeed();
+    expect(feed.stories).toHaveLength(5);
+    const db = (await getDb())!;
+    const stored = await loadSummaries(db, feed.stories.map((s) => s.id));
+    expect(stored.size).toBe(5);
+    const snapshot = await loadLatestSnapshot<StoryFeed>(db);
+    expect(snapshot?.generatedAt).toBe(feed.generatedAt);
+  });
+});
