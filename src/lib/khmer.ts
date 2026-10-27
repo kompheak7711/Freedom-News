@@ -18,6 +18,19 @@ export function articleLang(article: Article): Lang {
   return isKhmerText(article.title) ? "km" : "en";
 }
 
+/**
+ * Scripts a model writing Khmer sometimes slips into: Thai and Lao above all,
+ * plus Myanmar, Cyrillic, Arabic, the Indic blocks, kana, CJK and Hangul.
+ * Latin stays allowed: names and outlets are kept recognisable that way.
+ */
+const FOREIGN_SCRIPT =
+  /[\u0E00-\u0EFF\u1000-\u109F\u0400-\u04FF\u0600-\u06FF\u0900-\u0DFF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/;
+
+/** True when a text meant to be Khmer contains characters from another non-Latin script. */
+export function hasForeignScript(text: string): boolean {
+  return FOREIGN_SCRIPT.test(text);
+}
+
 let segmenter: Intl.Segmenter | null | undefined;
 
 /**

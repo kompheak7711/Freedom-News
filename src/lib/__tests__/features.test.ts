@@ -3,13 +3,13 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { classifyStory, classifyText, isCategory } from "../categories";
 import { computeCoverage, findBlindspot, outletCount, percentages } from "../coverage";
-import { articleLang, isKhmerText, segmentKhmer } from "../khmer";
+import { articleLang, hasForeignScript, isKhmerText, segmentKhmer } from "../khmer";
 import { hasPrefs, parsePrefs, personalize, serializePrefs } from "../prefs";
 import { detectRegions } from "../regions";
 import { queryTerms, searchFeed } from "../search";
 import { OUTLETS, SOURCES, getSource, outletOf, sideOf } from "../sources";
-import { buildStories, collectLocalArticles, localArticles, normalizeFeed, type StoryFeed } from "../stories";
-import { extractiveSummary, hasKhmer } from "../summarize";
+import { buildStories, collectLocalArticles, localArticles, normalizeFeed, shouldSummarize, type StoryFeed } from "../stories";
+import { extractiveSummary, hasKhmer, khmerLooksValid, sanitizeKhmer } from "../summarize";
 import { localizedSummary } from "../text";
 import type { Article, Story, StorySummary } from "../types";
 
@@ -240,6 +240,43 @@ describe("khmer", () => {
     expect(bridge).toBeDefined();
     expect(bridge!.coverage).toEqual({ left: 0, center: 0, right: 0, total: 0, unrated: 2 });
     expect(bridge!.regions).toEqual(["KH"]);
+  });
+});
+
+describe("khmer script check", () => {
+  it("flags Thai and other scripts mixed into Khmer, but not Latin names", () => {
+    expect(hasForeignScript("ហារ\u0E35 ខេន")).toBe(true); // Thai vowel (U+0E35) inside a Khmer word
+    expect(hasForeignScript("ហារី ខេន")).toBe(false); // the same word with the Khmer vowel
+    expect(hasForeignScript("ผู้นำฟินแลนด์ និងនอร์เวย์")).toBe(true);
+    expect(hasForeignScript("ធនាគារកណ្តាលរក្សាអត្រាការប្រាក់ (Federal Reserve) 25%")).toBe(false);
+  });
+
+  it("drops garbled Khmer and keeps the English summary", () => {
+    const good = summary({ headlineKm: "ធនាគារកណ្តាលរក្សាអត្រាការប្រាក់", summaryKm: "ធនាគារកណ្តាលបានរក្សាអត្រាការប្រាក់ដដែល។", leftFramingKm: "ស្ថាប័នឆ្វេង", rightFramingKm: null });
+    expect(khmerLooksValid(good)).toBe(true);
+    expect(sanitizeKhmer(good)).toBe(good);
+
+    const thai = { ...good, summaryKm: "ธนาคารกลาง รក្សាអត្រាការប្រាក់" };
+    expect(khmerLooksValid(thai)).toBe(false);
+    const cleaned = sanitizeKhmer(thai);
+    expect(cleaned.headline).toBe(good.headline);
+    expect(cleaned.generated).toBe(true);
+    expect(hasKhmer(cleaned)).toBe(false);
+    expect("summaryKm" in cleaned).toBe(false);
+
+    // Khmer fields that are not actually Khmer (the model answered in English) are dropped too.
+    expect(khmerLooksValid({ ...good, headlineKm: "Central bank holds rates" })).toBe(false);
+    expect(khmerLooksValid(summary())).toBe(false);
+  });
+});
+
+describe("shouldSummarize", () => {
+  it("takes the top stories plus Cambodia-local and blindspot stories", () => {
+    expect(shouldSummarize({ regions: [], blindspot: null }, 0, 30)).toBe(true);
+    expect(shouldSummarize({ regions: [], blindspot: null }, 30, 30)).toBe(false);
+    expect(shouldSummarize({ regions: ["KH"], blindspot: null }, 75, 30)).toBe(true);
+    expect(shouldSummarize({ regions: ["US"], blindspot: null }, 75, 30)).toBe(false);
+    expect(shouldSummarize({ regions: [], blindspot: "left" }, 75, 30)).toBe(true);
   });
 });
 
