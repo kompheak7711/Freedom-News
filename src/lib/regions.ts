@@ -12,7 +12,8 @@ export function isLocation(value: string | null | undefined): value is Location 
 /** Place names that mark a story as local to a country. Kept deliberately specific. */
 const PLACE_PATTERNS: Record<Location, RegExp> = {
   KH: /\b(cambodia|cambodian|cambodians|phnom penh|khmer|hun manet|hun sen|siem reap|angkor|sihanoukville|battambang|mekong delta)\b/i,
-  US: /\b(u\.s\.|united states|american|americans|washington|congress|white house|senate|pentagon|california|texas|florida|new york|chicago|los angeles)\b/i,
+  // No "Trump" or "Washington": they appear in world stories that are not about the US.
+  US: /\b(u\.s\.|united states|american|americans|congress|white house|senate|pentagon|california|texas|florida|new york|chicago|los angeles|supreme court|fbi|doj)\b/i,
   GB: /\b(uk|u\.k\.|britain|british|england|scotland|wales|northern ireland|london|downing street|westminster|nhs|starmer)\b/i,
   AU: /\b(australia|australian|australians|sydney|melbourne|canberra|queensland|brisbane|perth|albanese)\b/i,
   IN: /\b(india|indian|new delhi|delhi|mumbai|modi|bengaluru|bangalore|kolkata|chennai|hyderabad)\b/i,

@@ -38,10 +38,10 @@ describe("tokenize", () => {
 });
 
 describe("clusterArticles", () => {
-  it("groups the demo fixture into its six English stories", () => {
+  it("groups the demo fixture into its seven English stories", () => {
     const clusters = clusterArticles(demo);
     const storyOf = (a: Article) => rows[Number(a.id)].story;
-    expect(clusters).toHaveLength(6);
+    expect(clusters).toHaveLength(7);
     for (const c of clusters) {
       expect(new Set(c.map(storyOf)).size).toBe(1);
     }

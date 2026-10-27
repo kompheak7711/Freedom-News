@@ -8,7 +8,7 @@ import { BiasLabel } from "@/components/bits";
 import { readLocation } from "@/lib/request-context";
 import { pageMetadata } from "@/lib/seo";
 import { OUTLETS } from "@/lib/sources";
-import { getStoryFeed, localStories } from "@/lib/stories";
+import { getStoryFeed, localArticles, localStories } from "@/lib/stories";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,7 @@ export default async function LocalPage({ params }: { params: Promise<{ locale: 
   const { location, detected } = await readLocation();
   const feed = await getStoryFeed();
   const stories = location ? localStories(feed, location) : [];
+  const latest = location ? localArticles(feed, location) : [];
   const khmer = location === "KH" ? feed.khmerArticles : [];
   const outletsHere = location ? OUTLETS.filter((o) => o.country === location) : [];
   const name = location ? t(`locations.${location}`) : "";
@@ -48,7 +49,7 @@ export default async function LocalPage({ params }: { params: Promise<{ locale: 
           {!lead ? (
             <div className="card p-8 text-center">
               <p className="font-semibold">{t("local.empty", { location: name })}</p>
-              <p className="mt-2 text-sm text-muted">{t("local.emptyText")}</p>
+              {latest.length === 0 && khmer.length === 0 && <p className="mt-2 text-sm text-muted">{t("local.emptyText")}</p>}
             </div>
           ) : (
             <div className="space-y-4">
@@ -60,6 +61,17 @@ export default async function LocalPage({ params }: { params: Promise<{ locale: 
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {location && latest.length > 0 && (
+        <section>
+          <SectionHeading title={t("local.latestFromOutlets", { location: name })}>{t("local.latestFromOutletsText")}</SectionHeading>
+          <ul className="card px-4">
+            {latest.map((article) => (
+              <ArticleRow key={article.id} article={article} />
+            ))}
+          </ul>
         </section>
       )}
 

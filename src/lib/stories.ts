@@ -15,8 +15,9 @@ import {
   type StoredSummary,
 } from "./db";
 import { articleId, ingestAll } from "./ingest";
+import { getSource } from "./sources";
 import { articleLang } from "./khmer";
-import { detectRegions } from "./regions";
+import { detectRegions, LOCATIONS } from "./regions";
 import { extractiveSummary, hasKhmer, mapWithConcurrency, summarizeStory } from "./summarize";
 import type { Article, Category, Side, Story, StorySummary } from "./types";
 
@@ -26,6 +27,8 @@ const MAX_STORIES = Number(process.env.MAX_STORIES ?? 30);
 const MAX_FEED_STORIES = Number(process.env.MAX_FEED_STORIES ?? 80);
 /** Khmer-language articles are listed, not clustered; keep the latest few dozen. */
 const MAX_KHMER_ARTICLES = 60;
+/** Per country, the latest articles from outlets based there, for the Local page. */
+const MAX_LOCAL_ARTICLES = 40;
 /** Stop starting LLM calls after this long so a refresh fits the 300s route limit. */
 const LLM_TIME_BUDGET_MS = 200_000;
 /** A story needs at least this many outlets (rated or not) to make the feed. */
@@ -39,6 +42,12 @@ export interface StoryFeed {
   stories: Story[];
   /** Recent articles from Khmer-language outlets, shown on the Local page for Cambodia. */
   khmerArticles: Article[];
+  /**
+   * Per country code, the latest English-language articles from feeds dedicated
+   * to that country. Local outlets often cover an event alone, which never
+   * makes a story (a story needs two outlets), so the Local page lists these too.
+   */
+  localArticles: Record<string, Article[]>;
   generatedAt: string;
   articleCount: number;
   failedSources: string[];
@@ -206,6 +215,7 @@ export async function refreshFeed(): Promise<StoryFeed> {
   const feed: StoryFeed = {
     stories,
     khmerArticles,
+    localArticles: collectLocalArticles(articles),
     generatedAt: new Date().toISOString(),
     articleCount: articles.length,
     failedSources: loaded.failedSources,
@@ -215,14 +225,33 @@ export async function refreshFeed(): Promise<StoryFeed> {
   return feed;
 }
 
+/** The latest English-language articles from each country's own feeds. */
+export function collectLocalArticles(articles: Article[]): Record<string, Article[]> {
+  const byRegion: Record<string, Article[]> = {};
+  for (const region of LOCATIONS) byRegion[region] = [];
+  for (const article of articles) {
+    const region = getSource(article.sourceId)?.region;
+    if (region && region in byRegion && articleLang(article) === "en") byRegion[region].push(article);
+  }
+  for (const region of LOCATIONS) {
+    byRegion[region] = byRegion[region].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, MAX_LOCAL_ARTICLES);
+  }
+  return byRegion;
+}
+
 type StoredStory = Omit<Story, "category" | "regions" | "keywords"> & Partial<Pick<Story, "category" | "regions" | "keywords">>;
-type StoredFeed = Omit<StoryFeed, "stories" | "khmerArticles"> & { stories: StoredStory[]; khmerArticles?: Article[] };
+type StoredFeed = Omit<StoryFeed, "stories" | "khmerArticles" | "localArticles"> & {
+  stories: StoredStory[];
+  khmerArticles?: Article[];
+  localArticles?: Record<string, Article[]>;
+};
 
 /** Fills in fields that snapshots written by older versions lack. */
 export function normalizeFeed(feed: StoredFeed): StoryFeed {
   return {
     ...feed,
     khmerArticles: feed.khmerArticles ?? [],
+    localArticles: feed.localArticles ?? {},
     stories: feed.stories.map((s) => ({
       ...s,
       coverage: { ...s.coverage, unrated: s.coverage.unrated ?? 0 },
@@ -270,6 +299,12 @@ export function blindspotStories(feed: StoryFeed, side?: Side): Story[] {
 
 export function localStories(feed: StoryFeed, country: string): Story[] {
   return feed.stories.filter((s) => s.regions.includes(country));
+}
+
+/** Articles from a country's own outlets that are not already in one of its stories. */
+export function localArticles(feed: StoryFeed, country: string): Article[] {
+  const shown = new Set(localStories(feed, country).flatMap((s) => s.articles.map((a) => a.id)));
+  return (feed.localArticles[country] ?? []).filter((a) => !shown.has(a.id));
 }
 
 /** Other stories in the same section or sharing distinctive terms. */

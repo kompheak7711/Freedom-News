@@ -8,7 +8,7 @@ import { hasPrefs, parsePrefs, personalize, serializePrefs } from "../prefs";
 import { detectRegions } from "../regions";
 import { queryTerms, searchFeed } from "../search";
 import { OUTLETS, SOURCES, getSource, outletOf, sideOf } from "../sources";
-import { buildStories, normalizeFeed, type StoryFeed } from "../stories";
+import { buildStories, collectLocalArticles, localArticles, normalizeFeed, type StoryFeed } from "../stories";
 import { extractiveSummary, hasKhmer } from "../summarize";
 import { localizedSummary } from "../text";
 import type { Article, Story, StorySummary } from "../types";
@@ -67,9 +67,10 @@ function story(over: Partial<Story> = {}): Story {
   };
 }
 
-const feedOf = (stories: Story[], khmerArticles: Article[] = []): StoryFeed => ({
+const feedOf = (stories: Story[], khmerArticles: Article[] = [], local: Record<string, Article[]> = {}): StoryFeed => ({
   stories,
   khmerArticles,
+  localArticles: local,
   generatedAt: new Date(now).toISOString(),
   articleCount: stories.reduce((n, s) => n + s.articles.length, 0),
   failedSources: [],
@@ -170,6 +171,34 @@ describe("regions", () => {
     ).toEqual([]);
     expect(detectRegions([article("npr-us", "Senate passes bill"), article("bbc-uk", "Commons debates bill")])).toEqual(["US", "GB"]);
   });
+
+  it("does not call a world story local to the US just because Trump is quoted", () => {
+    expect(detectRegions([article("bbc", "Lula wins Brazil runoff; Trump calls vote rigged"), article("cnn", "Trump says Brazil vote was rigged")])).toEqual([]);
+  });
+});
+
+describe("local articles", () => {
+  it("keeps the latest English articles from each country's own feeds", () => {
+    const local = collectLocalArticles([
+      article("phnompenhpost", "Ministry opens bridge", "", 10),
+      article("camboja", "Union protests factory closure", "", 5),
+      article("rfakhmer", "ព័ត៌មានជាភាសាខ្មែរ", "", 1),
+      article("bbc-uk", "Rail strike announced", "", 2),
+      article("bbc", "World news", "", 0),
+    ]);
+    expect(local.KH.map((a) => a.sourceId)).toEqual(["camboja", "phnompenhpost"]);
+    expect(local.GB.map((a) => a.sourceId)).toEqual(["bbc-uk"]);
+    expect(local.US).toEqual([]);
+  });
+
+  it("hides articles that already appear in a local story", () => {
+    const inStory = article("phnompenhpost", "Border crossings reopen");
+    const alone = article("camboja", "Union protests factory closure");
+    const s = story({ id: "border", regions: ["KH"], articles: [inStory, article("bbc", "Cambodia border crossings reopen")] });
+    const feed = feedOf([s], [], { KH: [inStory, alone] });
+    expect(localArticles(feed, "KH")).toEqual([alone]);
+    expect(localArticles(feed, "US")).toEqual([]);
+  });
 });
 
 describe("khmer", () => {
@@ -244,6 +273,7 @@ describe("normalizeFeed", () => {
     };
     const feed = normalizeFeed(old);
     expect(feed.khmerArticles).toEqual([]);
+    expect(feed.localArticles).toEqual({});
     expect(feed.stories[0]).toMatchObject({ category: "world", regions: ["KH"], keywords: [], coverage: { unrated: 0 } });
     // A stored category wins over the classifier.
     const withCategory = normalizeFeed({ ...old, stories: [{ ...old.stories[0], summary: { ...old.stories[0].summary, category: "health" as const } }] });
