@@ -43,6 +43,10 @@ describe("canReuseSummary", () => {
     expect(canReuseSummary(noKhmer, 4, false)).toBe(true);
     const noCategory = { articleCount: 4, summary: { ...summary(true), category: undefined } };
     expect(canReuseSummary(noCategory, 4, true)).toBe(false);
+    // Khmer that strayed into Thai script counts as missing.
+    const garbled = { articleCount: 4, summary: { ...summary(true), headlineKm: "ហារ\u0E35 ខេន" } };
+    expect(canReuseSummary(garbled, 4, true)).toBe(false);
+    expect(canReuseSummary(garbled, 4, false)).toBe(true);
   });
 });
 
