@@ -72,6 +72,8 @@ export interface StorySummary {
   summaryKm?: string;
   leftFramingKm?: string | null;
   rightFramingKm?: string | null;
+  /** Set when the Khmer text failed the script check twice; no retry before this time. */
+  khmerRetryAfter?: string;
 }
 
 export interface Story {

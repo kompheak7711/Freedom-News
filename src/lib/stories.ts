@@ -162,13 +162,16 @@ export function buildStories(articles: Article[]): Draft[] {
  * Should a stored summary be reused for a story that now has `count` articles?
  * With the LLM available, a summary that lacks a category or usable Khmer text
  * (missing, or garbled with another script) is rewritten so stories
- * summarized before those checks existed catch up.
+ * summarized before those checks existed catch up, except that a story whose
+ * Khmer just failed twice waits until `khmerRetryAfter` before costing calls again.
  */
-export function canReuseSummary(stored: StoredSummary | undefined, count: number, llmAvailable: boolean): boolean {
+export function canReuseSummary(stored: StoredSummary | undefined, count: number, llmAvailable: boolean, now = Date.now()): boolean {
   if (!stored) return false;
   if (llmAvailable) {
-    if (!stored.summary.generated) return false;
-    if (!khmerLooksValid(stored.summary) || !stored.summary.category) return false;
+    const { summary } = stored;
+    if (!summary.generated || !summary.category) return false;
+    const waitingForRetry = Boolean(summary.khmerRetryAfter && Date.parse(summary.khmerRetryAfter) > now);
+    if (!khmerLooksValid(summary) && !waitingForRetry) return false;
   }
   // Rewrite once the story has grown by half, since the facts have likely moved on.
   return count < stored.articleCount * 1.5;
