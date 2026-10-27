@@ -18,7 +18,7 @@ import { articleId, ingestAll } from "./ingest";
 import { getSource } from "./sources";
 import { articleLang } from "./khmer";
 import { detectRegions, LOCATIONS } from "./regions";
-import { extractiveSummary, hasKhmer, mapWithConcurrency, summarizeStory } from "./summarize";
+import { extractiveSummary, khmerLooksValid, mapWithConcurrency, sanitizeKhmer, summarizeStory } from "./summarize";
 import type { Article, Category, Side, Story, StorySummary } from "./types";
 
 /** How many stories get an LLM summary per refresh. The rest get extractive summaries. */
@@ -160,14 +160,15 @@ export function buildStories(articles: Article[]): Draft[] {
 
 /**
  * Should a stored summary be reused for a story that now has `count` articles?
- * With the LLM available, a summary that lacks Khmer text or a category is
- * rewritten so stories summarized before those existed catch up.
+ * With the LLM available, a summary that lacks a category or usable Khmer text
+ * (missing, or garbled with another script) is rewritten so stories
+ * summarized before those checks existed catch up.
  */
 export function canReuseSummary(stored: StoredSummary | undefined, count: number, llmAvailable: boolean): boolean {
   if (!stored) return false;
   if (llmAvailable) {
     if (!stored.summary.generated) return false;
-    if (!hasKhmer(stored.summary) || !stored.summary.category) return false;
+    if (!khmerLooksValid(stored.summary) || !stored.summary.category) return false;
   }
   // Rewrite once the story has grown by half, since the facts have likely moved on.
   return count < stored.articleCount * 1.5;
@@ -260,7 +261,7 @@ type StoredFeed = Omit<StoryFeed, "stories" | "khmerArticles" | "localArticles">
   localArticles?: Record<string, Article[]>;
 };
 
-/** Fills in fields that snapshots written by older versions lack. */
+/** Fills in fields that snapshots written by older versions lack, and drops garbled Khmer. */
 export function normalizeFeed(feed: StoredFeed): StoryFeed {
   return {
     ...feed,
@@ -268,6 +269,8 @@ export function normalizeFeed(feed: StoredFeed): StoryFeed {
     localArticles: feed.localArticles ?? {},
     stories: feed.stories.map((s) => ({
       ...s,
+      // Garbled Khmer written before the script check is hidden until the next refresh rewrites it.
+      summary: sanitizeKhmer(s.summary),
       coverage: { ...s.coverage, unrated: s.coverage.unrated ?? 0 },
       category: s.category ?? s.summary.category ?? classifyStory(s.articles),
       regions: s.regions ?? detectRegions(s.articles),

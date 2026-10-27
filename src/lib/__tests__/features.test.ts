@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { classifyStory, classifyText, isCategory } from "../categories";
 import { computeCoverage, findBlindspot, outletCount, percentages } from "../coverage";
-import { articleLang, hasForeignScript, isKhmerText, segmentKhmer } from "../khmer";
+import { articleLang, hasForeignScript, isKhmerText, looksGarbledKhmer, segmentKhmer } from "../khmer";
 import { hasPrefs, parsePrefs, personalize, serializePrefs } from "../prefs";
 import { detectRegions } from "../regions";
 import { queryTerms, searchFeed } from "../search";
@@ -251,6 +251,13 @@ describe("khmer script check", () => {
     expect(hasForeignScript("ធនាគារកណ្តាលរក្សាអត្រាការប្រាក់ (Federal Reserve) 25%")).toBe(false);
   });
 
+  it("flags Latin letters or digits wedged inside a Khmer word", () => {
+    expect(looksGarbledKhmer("ការវាយប្រហារតាមអាកាសរបស់ជordanនៅភាគខាងត្បូងស៊ីរី")).toBe(true);
+    expect(looksGarbledKhmer("រដ្ឋកាលីហ្វ359័រញ៉ា")).toBe(true);
+    expect(looksGarbledKhmer("ធនាគារកណ្តាល (Federal Reserve) រក្សាអត្រាការប្រាក់ 4.5% ក្នុងឆ្នាំ 2026")).toBe(false);
+    expect(looksGarbledKhmer("Anthropic ដាក់ពាក្យចុះបញ្ជីភាគហ៊ុន")).toBe(false);
+  });
+
   it("drops garbled Khmer and keeps the English summary", () => {
     const good = summary({ headlineKm: "ធនាគារកណ្តាលរក្សាអត្រាការប្រាក់", summaryKm: "ធនាគារកណ្តាលបានរក្សាអត្រាការប្រាក់ដដែល។", leftFramingKm: "ស្ថាប័នឆ្វេង", rightFramingKm: null });
     expect(khmerLooksValid(good)).toBe(true);
@@ -263,6 +270,9 @@ describe("khmer script check", () => {
     expect(cleaned.generated).toBe(true);
     expect(hasKhmer(cleaned)).toBe(false);
     expect("summaryKm" in cleaned).toBe(false);
+
+    const glued = { ...good, headlineKm: "ការវាយប្រហាររបស់ជordanនៅស៊ីរី" };
+    expect(khmerLooksValid(glued)).toBe(false);
 
     // Khmer fields that are not actually Khmer (the model answered in English) are dropped too.
     expect(khmerLooksValid({ ...good, headlineKm: "Central bank holds rates" })).toBe(false);
@@ -311,6 +321,13 @@ describe("normalizeFeed", () => {
     const feed = normalizeFeed(old);
     expect(feed.khmerArticles).toEqual([]);
     expect(feed.localArticles).toEqual({});
+    // Garbled Khmer stored before the script check is dropped on read.
+    const garbled = normalizeFeed({
+      ...old,
+      stories: [{ ...old.stories[0], summary: { ...old.stories[0].summary, headlineKm: "ហារ\u0E35 ខេន ឈ្នះ", summaryKm: "សេចក្តីសង្ខេប" } }],
+    });
+    expect(garbled.stories[0].summary.headlineKm).toBeUndefined();
+    expect(garbled.stories[0].summary.headline).toBe("h");
     expect(feed.stories[0]).toMatchObject({ category: "world", regions: ["KH"], keywords: [], coverage: { unrated: 0 } });
     // A stored category wins over the classifier.
     const withCategory = normalizeFeed({ ...old, stories: [{ ...old.stories[0], summary: { ...old.stories[0].summary, category: "health" as const } }] });
