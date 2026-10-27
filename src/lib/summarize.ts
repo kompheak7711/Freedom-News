@@ -10,6 +10,8 @@ import { CATEGORIES, type Article, type StorySummary } from "./types";
 const MODEL = process.env.SUMMARY_MODEL ?? "claude-opus-5-5";
 /** One summary call must not eat the whole refresh window (300s on Vercel). */
 const CALL_TIMEOUT_MS = 90_000;
+/** After Khmer fails the script check twice, wait this long before spending calls on it again. */
+const KHMER_RETRY_MS = 6 * 60 * 60 * 1000;
 
 const SummarySchema = z.object({
   headline: z.string().describe("Neutral English headline, at most 14 words"),
@@ -75,15 +77,18 @@ export function khmerLooksValid(summary: StorySummary): boolean {
   );
 }
 
-/** Removes the Khmer fields of a summary whose Khmer is missing or garbled, keeping the English. */
-export function sanitizeKhmer(summary: StorySummary): StorySummary {
+/**
+ * Removes the Khmer fields of a summary whose Khmer is missing or garbled,
+ * keeping the English. `retryAfter` records when a fresh attempt may be made.
+ */
+export function sanitizeKhmer(summary: StorySummary, retryAfter?: Date): StorySummary {
   if (khmerLooksValid(summary)) return summary;
   const { headlineKm, summaryKm, leftFramingKm, rightFramingKm, ...rest } = summary;
   void headlineKm;
   void summaryKm;
   void leftFramingKm;
   void rightFramingKm;
-  return rest;
+  return retryAfter ? { ...rest, khmerRetryAfter: retryAfter.toISOString() } : rest;
 }
 
 /** Builds a summary from the articles themselves, used when the LLM is unavailable. */
@@ -131,7 +136,7 @@ export async function summarizeStory(articles: Article[]): Promise<StorySummary>
       const again = await callModel(anthropic, articles, true);
       if (again && khmerLooksValid(again)) summary = again;
     }
-    return sanitizeKhmer(summary);
+    return sanitizeKhmer(summary, new Date(Date.now() + KHMER_RETRY_MS));
   } catch (err) {
     console.warn(`[summarize] falling back to extractive summary: ${String(err)}`);
     return extractiveSummary(articles);

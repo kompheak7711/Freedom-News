@@ -32,15 +32,22 @@ export function hasForeignScript(text: string): boolean {
 }
 
 /**
- * Latin letters or digits wedged inside a Khmer word with no space on either
- * side ("ជordanនៅ", "កាលីហ្វ359័រញ៉ា") are a corrupted transliteration: real
- * Khmer separates names and numbers with spaces or brackets.
+ * Latin letters wedged inside a Khmer word with no space on either side
+ * ("ជordanនៅ") are a corrupted transliteration: real Khmer separates names
+ * with spaces or brackets. Digits are not checked this way, since "ជុំទី2ជាមួយ"
+ * or "អាយុ46ឆ្នាំ" is ordinary Khmer typing.
  */
-const GLUED_FOREIGN = /[\u1780-\u17FF][A-Za-z0-9]+[\u1780-\u17FF]/;
+const GLUED_LATIN = /[\u1780-\u17FF][A-Za-z]+[\u1780-\u17FF]/;
+/**
+ * A Khmer dependent vowel or sign (U+17B4-U+17D3) can only follow a Khmer
+ * consonant, so one after a digit or Latin letter ("កាលីហ្វ359័រញ៉ា") means
+ * characters of a word were replaced.
+ */
+const SIGN_AFTER_FOREIGN = /[A-Za-z0-9][\u17B4-\u17D3]/;
 
 /** True when Khmer text shows signs of a garbled model output. */
 export function looksGarbledKhmer(text: string): boolean {
-  return hasForeignScript(text) || GLUED_FOREIGN.test(text);
+  return hasForeignScript(text) || GLUED_LATIN.test(text) || SIGN_AFTER_FOREIGN.test(text);
 }
 
 let segmenter: Intl.Segmenter | null | undefined;

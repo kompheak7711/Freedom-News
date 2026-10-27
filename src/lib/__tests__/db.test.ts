@@ -48,6 +48,15 @@ describe("canReuseSummary", () => {
     expect(canReuseSummary(garbled, 4, true)).toBe(false);
     expect(canReuseSummary(garbled, 4, false)).toBe(true);
   });
+
+  it("waits out khmerRetryAfter before spending calls on Khmer that failed twice", () => {
+    const now = Date.parse("2026-10-27T20:00:00Z");
+    const dropped = { ...summary(true, false), khmerRetryAfter: "2026-10-28T02:00:00Z" };
+    expect(canReuseSummary({ articleCount: 4, summary: dropped }, 4, true, now)).toBe(true);
+    expect(canReuseSummary({ articleCount: 4, summary: dropped }, 4, true, Date.parse("2026-10-28T03:00:00Z"))).toBe(false);
+    // Growth still forces a rewrite.
+    expect(canReuseSummary({ articleCount: 4, summary: dropped }, 6, true, now)).toBe(false);
+  });
 });
 
 // Runs against a real Postgres when TEST_DATABASE_URL is set, e.g.

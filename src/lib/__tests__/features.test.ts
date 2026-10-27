@@ -253,7 +253,9 @@ describe("khmer script check", () => {
 
   it("flags Latin letters or digits wedged inside a Khmer word", () => {
     expect(looksGarbledKhmer("ការវាយប្រហារតាមអាកាសរបស់ជordanនៅភាគខាងត្បូងស៊ីរី")).toBe(true);
-    expect(looksGarbledKhmer("រដ្ឋកាលីហ្វ359័រញ៉ា")).toBe(true);
+    expect(looksGarbledKhmer("រដ្ឋកាលីហ្វ359័រញ៉ា")).toBe(true); // a vowel sign right after digits
+    expect(looksGarbledKhmer("ជុំទី2ជាមួយលោក")).toBe(false); // digits inside a phrase are normal Khmer typing
+    expect(looksGarbledKhmer("អាយុ46ឆ្នាំ")).toBe(false);
     expect(looksGarbledKhmer("ធនាគារកណ្តាល (Federal Reserve) រក្សាអត្រាការប្រាក់ 4.5% ក្នុងឆ្នាំ 2026")).toBe(false);
     expect(looksGarbledKhmer("Anthropic ដាក់ពាក្យចុះបញ្ជីភាគហ៊ុន")).toBe(false);
   });
@@ -270,6 +272,8 @@ describe("khmer script check", () => {
     expect(cleaned.generated).toBe(true);
     expect(hasKhmer(cleaned)).toBe(false);
     expect("summaryKm" in cleaned).toBe(false);
+    expect(cleaned.khmerRetryAfter).toBeUndefined();
+    expect(sanitizeKhmer(thai, new Date("2026-10-28T00:00:00Z")).khmerRetryAfter).toBe("2026-10-28T00:00:00.000Z");
 
     const glued = { ...good, headlineKm: "ការវាយប្រហាររបស់ជordanនៅស៊ីរី" };
     expect(khmerLooksValid(glued)).toBe(false);
