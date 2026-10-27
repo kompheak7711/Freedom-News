@@ -251,9 +251,15 @@ describe("khmer script check", () => {
     expect(hasForeignScript("ធនាគារកណ្តាលរក្សាអត្រាការប្រាក់ (Federal Reserve) 25%")).toBe(false);
   });
 
-  it("flags Latin letters or digits wedged inside a Khmer word", () => {
+  it("flags Khmer letters touching Latin ones and vowel signs with no consonant", () => {
     expect(looksGarbledKhmer("ការវាយប្រហារតាមអាកាសរបស់ជordanនៅភាគខាងត្បូងស៊ីរី")).toBe(true);
+    expect(looksGarbledKhmer("ចេញពីពន្ធនាគាររដ្ឋតennessee តាមរយៈរបង")).toBe(true); // "Tennessee" with a Khmer T
     expect(looksGarbledKhmer("រដ្ឋកាលីហ្វ359័រញ៉ា")).toBe(true); // a vowel sign right after digits
+    expect(looksGarbledKhmer("របស់ លោកស្រី ីលហាន អូម៉ា")).toBe(true); // a vowel sign starting a word
+    expect(looksGarbledKhmer("នៅ Oleshky ប្រទេសអ៊ុយក្រែន និង SoFi Stadium")).toBe(false); // spaced Latin names
+    expect(looksGarbledKhmer("ជ័យ-Z ត្រូវបានប្រកាស")).toBe(false); // hyphenated
+    expect(looksGarbledKhmer("© 2026 Freedom News។ ចំណងជើង")).toBe(false); // Khmer full stop after a Latin word
+    expect(looksGarbledKhmer("5 ម៉ោង\u200bមុន")).toBe(false); // zero-width space between Khmer words
     expect(looksGarbledKhmer("ជុំទី2ជាមួយលោក")).toBe(false); // digits inside a phrase are normal Khmer typing
     expect(looksGarbledKhmer("អាយុ46ឆ្នាំ")).toBe(false);
     expect(looksGarbledKhmer("ធនាគារកណ្តាល (Federal Reserve) រក្សាអត្រាការប្រាក់ 4.5% ក្នុងឆ្នាំ 2026")).toBe(false);
