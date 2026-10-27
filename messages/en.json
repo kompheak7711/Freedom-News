@@ -155,7 +155,9 @@
     "khmerEmpty": "No Khmer-language reports in the last two days.",
     "outletsHere": "Outlets based in {location}",
     "noOutlets": "We do not follow any outlets based in {location} yet, so local stories come from international coverage.",
-    "storiesCount": "{count, plural, =1 {1 story} other {# stories}}"
+    "storiesCount": "{count, plural, =1 {1 story} other {# stories}}",
+    "latestFromOutlets": "Latest from outlets in {location}",
+    "latestFromOutletsText": "Reports from outlets based there that no other outlet in our list has covered yet, so they are not grouped into stories."
   },
   "forYou": {
     "title": "For You",

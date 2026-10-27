@@ -18,7 +18,11 @@ type FeedItem = {
 
 const parser = new Parser<Record<string, unknown>, FeedItem>({
   timeout: 10_000,
-  headers: { "User-Agent": "FreedomNews/0.1 (+https://github.com)" },
+  // Some publishers refuse unknown user agents; identify like a crawler with a contact URL.
+  headers: {
+    "User-Agent": "Mozilla/5.0 (compatible; FreedomNews/0.2; +https://github.com/kompheak7711/Freedom-News)",
+    Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5",
+  },
   customFields: { item: ["media:content", "media:thumbnail"] },
 });
 

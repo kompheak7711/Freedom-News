@@ -21,7 +21,7 @@ visitors in Cambodia (Vercel's `x-vercel-ip-country` header) default to Khmer.
 | `/category/[slug]` | Stories in one section: politics, world, business, technology, science, health, sports, entertainment. |
 | `/blindspot` | Stories split into "Blindspot for the Left" and "Blindspot for the Right" (`?side=left\|right`). |
 | `/story/[id]` | Summary with Left / Center / Right framing tabs, coverage details, bias distribution, the outlet list with ratings, similar topics. Factuality and ownership are marked "coming soon"; we do not invent ratings. |
-| `/local` | Stories local to a country (Cambodia, US, UK, Australia, India). For Cambodia it also lists recent Khmer-language reports. Location comes from the `fn_location` cookie, else the visitor's IP country. |
+| `/local` | Stories local to a country (Cambodia, US, UK, Australia, India), plus the latest reports from outlets based there that no other outlet has covered (a story needs two outlets). For Cambodia it also lists recent Khmer-language reports. Location comes from the `fn_location` cookie, else the visitor's IP country. |
 | `/for-you` | Stories from followed topics and outlets. Follows live in the `fn_prefs` cookie on this device; accounts are a follow-up. |
 | `/sources` | Every outlet with its country, language, feed count and bias rating. |
 | `/search` | Searches headlines, summaries (English and Khmer), outlet names and, with a database, every stored article. |
@@ -80,7 +80,7 @@ npm test                     # add TEST_DATABASE_URL=postgres://... to also run 
 ```
 
 Demo mode uses `fixtures/demo-articles.json` (six English stories, one of them Cambodian,
-plus three Khmer-language reports) and `fixtures/demo-khmer-summaries.json` for Khmer text
+a single-outlet Cambodian report, plus three Khmer-language reports) and `fixtures/demo-khmer-summaries.json` for Khmer text
 on three stories, so both the translated and the "not available yet" states can be seen
 at `/km`.
 
