@@ -7,7 +7,7 @@ summarizes each story with Claude in both languages, and shows how much coverage
 from left, center, and right outlets. It also flags **blindspots**: stories one side of
 the spectrum barely covered.
 
-Live: https://freedom-news-tawny.vercel.app
+Live: https://freedom-news-kh.vercel.app
 
 ## Pages
 
