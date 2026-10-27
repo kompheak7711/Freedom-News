@@ -128,3 +128,26 @@ export async function loadLatestSnapshot<T>(db: Sql): Promise<T | null> {
   const rows = await db<{ data: T }[]>`select data from feed_snapshots order by generated_at desc limit 1`;
   return rows[0]?.data ?? null;
 }
+
+/** Case-insensitive search over every stored article's title and description. */
+export async function searchArticles(db: Sql, query: string, limit = 50): Promise<Article[]> {
+  const pattern = `%${query.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+  const rows = await db<
+    { id: string; source_id: string; title: string; description: string; url: string; published_at: Date; image_url: string | null }[]
+  >`
+    select id, source_id, title, description, url, published_at, image_url
+    from articles
+    where title ilike ${pattern} or description ilike ${pattern}
+    order by published_at desc
+    limit ${limit}
+  `;
+  return rows.map((r) => ({
+    id: r.id,
+    sourceId: r.source_id,
+    title: r.title,
+    description: r.description,
+    url: r.url,
+    publishedAt: r.published_at.toISOString(),
+    imageUrl: r.image_url ?? undefined,
+  }));
+}

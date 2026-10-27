@@ -1,31 +1,212 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f5f2;
+  --background: #f4f3ef;
   --card: #ffffff;
-  --foreground: #1a1a1a;
-  --muted: #5f5f5f;
-  --border: #e2dfd8;
+  --foreground: #16181d;
+  --muted: #5d6066;
+  --border: #e3e0d8;
+  --soft: #ece9e1;
   --left: #2f5fb3;
   --center: #8a8a8a;
   --right: #c0392b;
+  --accent: #1f6f5b;
+  --ink-inverse: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #111213;
-    --card: #1b1c1e;
+    --background: #111214;
+    --card: #1a1c1f;
     --foreground: #ececec;
-    --muted: #a3a3a3;
-    --border: #2d2f33;
+    --muted: #a6a9ae;
+    --border: #2b2e33;
+    --soft: #232529;
     --left: #4f7fd4;
-    --center: #7a7a7a;
+    --center: #7f7f7f;
     --right: #d9534f;
+    --accent: #3fae8f;
+    --ink-inverse: #111214;
   }
+}
+
+@theme inline {
+  --color-bg: var(--background);
+  --color-card: var(--card);
+  --color-ink: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-soft: var(--soft);
+  --color-left: var(--left);
+  --color-center: var(--center);
+  --color-right: var(--right);
+  --color-accent: var(--accent);
+  --color-inverse: var(--ink-inverse);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-khmer: var(--font-khmer), "Noto Sans Khmer", "Khmer OS System", "Khmer OS", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Khmer script stacks subscript consonants below the baseline and vowels
+ * above it, so it needs taller lines than Latin and must never sit in a
+ * fixed-height box. The Khmer edition switches the whole page to a Khmer
+ * font; English pages use [lang="km"] for Khmer snippets (article titles).
+ */
+html[lang="km"] body,
+[lang="km"] {
+  font-family: var(--font-khmer);
+  line-height: 1.8;
+}
+
+html[lang="km"] h1,
+html[lang="km"] h2,
+html[lang="km"] h3,
+[lang="km"] h1,
+[lang="km"] h2,
+[lang="km"] h3 {
+  line-height: 1.55;
+}
+
+html[lang="km"] .chip,
+html[lang="km"] .btn,
+[lang="km"].chip {
+  line-height: 1.7;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+/* Latin headlines can be tighter. */
+html[lang="en"] .headline {
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.container-page {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 120ms, border-color 120ms;
+}
+
+.chip:hover {
+  border-color: var(--muted);
+}
+
+.chip[data-active="true"] {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--card);
+  transition: background-color 120ms, border-color 120ms;
+}
+
+.btn:hover {
+  border-color: var(--muted);
+}
+
+.btn-primary {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.scroll-x {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.story-image {
+  background: linear-gradient(135deg, var(--soft), var(--border));
+}
+
+.placeholder-politics { background: linear-gradient(135deg, #3b4a6b, #1f2a44); }
+.placeholder-world { background: linear-gradient(135deg, #2a6f6a, #163e3b); }
+.placeholder-business { background: linear-gradient(135deg, #6b5b2e, #3d3315); }
+.placeholder-technology { background: linear-gradient(135deg, #3f4e8a, #22295a); }
+.placeholder-science { background: linear-gradient(135deg, #2f6b8a, #163a4c); }
+.placeholder-health { background: linear-gradient(135deg, #8a3f5a, #4c1f30); }
+.placeholder-sports { background: linear-gradient(135deg, #3f7a3a, #1f3f1c); }
+.placeholder-entertainment { background: linear-gradient(135deg, #7a3f8a, #3f1f4c); }
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  background: var(--foreground);
+  color: var(--background);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+}
+
+.skip-link:focus {
+  top: 1rem;
 }

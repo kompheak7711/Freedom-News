@@ -24,6 +24,8 @@ const parser = new Parser<Record<string, unknown>, FeedItem>({
 
 /** Articles older than this are ignored. */
 const MAX_AGE_MS = 48 * 60 * 60 * 1000;
+/** Some feeds carry 150 items; the newest few dozen are plenty for a 48h window. */
+const MAX_ITEMS_PER_FEED = 40;
 
 export function articleId(url: string): string {
   return createHash("sha1").update(url).digest("hex").slice(0, 12);
@@ -75,7 +77,9 @@ export function toArticles(source: Source, items: FeedItem[], now = Date.now()):
 
 async function fetchSource(source: Source): Promise<Article[]> {
   const feed = await parser.parseURL(source.feedUrl);
-  return toArticles(source, feed.items);
+  return toArticles(source, feed.items)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    .slice(0, MAX_ITEMS_PER_FEED);
 }
 
 export interface IngestResult {

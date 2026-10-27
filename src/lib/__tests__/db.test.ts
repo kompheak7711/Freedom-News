@@ -12,12 +12,14 @@ import {
 import { canReuseSummary, refreshFeed, type StoryFeed } from "../stories";
 import type { StorySummary } from "../types";
 
-const summary = (generated: boolean): StorySummary => ({
+const summary = (generated: boolean, khmer = true): StorySummary => ({
   headline: "h",
   summary: "s",
   leftFraming: null,
   rightFraming: null,
   generated,
+  category: "world",
+  ...(khmer ? { headlineKm: "ចំណងជើង", summaryKm: "សេចក្តីសង្ខេប", leftFramingKm: null, rightFramingKm: null } : {}),
 });
 
 describe("canReuseSummary", () => {
@@ -32,6 +34,15 @@ describe("canReuseSummary", () => {
     const stored = { articleCount: 4, summary: summary(false) };
     expect(canReuseSummary(stored, 4, true)).toBe(false);
     expect(canReuseSummary(stored, 4, false)).toBe(true);
+  });
+
+  it("rewrites a summary stored without Khmer or a category once the LLM is available", () => {
+    const noKhmer = { articleCount: 4, summary: summary(true, false) };
+    expect(canReuseSummary(noKhmer, 4, true)).toBe(false);
+    // Without the LLM there is nothing better to replace it with.
+    expect(canReuseSummary(noKhmer, 4, false)).toBe(true);
+    const noCategory = { articleCount: 4, summary: { ...summary(true), category: undefined } };
+    expect(canReuseSummary(noCategory, 4, true)).toBe(false);
   });
 });
 
@@ -79,10 +90,11 @@ describe.skipIf(!url)("postgres storage", () => {
   it("refreshFeed persists summaries and a snapshot", async () => {
     process.env.NEWS_DEMO = "1";
     const feed = await refreshFeed();
-    expect(feed.stories).toHaveLength(5);
+    expect(feed.stories).toHaveLength(6);
+    expect(feed.khmerArticles).toHaveLength(3);
     const db = (await getDb())!;
     const stored = await loadSummaries(db, feed.stories.map((s) => s.id));
-    expect(stored.size).toBe(5);
+    expect(stored.size).toBe(6);
     const snapshot = await loadLatestSnapshot<StoryFeed>(db);
     expect(snapshot?.generatedAt).toBe(feed.generatedAt);
   });

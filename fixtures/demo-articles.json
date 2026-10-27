@@ -1,25 +1,219 @@
 [
-  {"story": "climate", "sourceId": "bbc", "title": "Global climate summit agrees on new methane reduction target", "description": "Delegates at the climate summit agreed a target to cut methane emissions 40% by 2035, with funding for monitoring satellites.", "minutesAgo": 40},
-  {"story": "climate", "sourceId": "guardian", "title": "Climate summit methane target hailed as breakthrough but critics say it falls short", "description": "Campaigners welcomed the methane reduction target agreed at the climate summit but warned it lacks enforcement.", "minutesAgo": 55},
-  {"story": "climate", "sourceId": "nyt", "title": "Nations at climate summit commit to methane emissions cut", "description": "Negotiators reached a deal on methane emissions after two weeks of talks at the climate summit.", "minutesAgo": 70},
-  {"story": "climate", "sourceId": "fox", "title": "Climate summit methane deal could raise energy costs, industry warns", "description": "Energy producers said the methane target agreed at the climate summit could push up prices for consumers.", "minutesAgo": 90},
-  {"story": "climate", "sourceId": "dw", "title": "Climate summit: countries agree methane emissions target", "description": "The agreement on methane emissions includes a fund for developing countries to monitor leaks.", "minutesAgo": 100},
-  {"story": "climate", "sourceId": "wsj", "title": "Methane target agreed at climate summit puts pressure on gas producers", "description": "Gas producers face new monitoring requirements under the methane deal reached at the climate summit.", "minutesAgo": 120},
-  {"story": "rates", "sourceId": "cnbc", "title": "Central bank holds interest rates steady, signals cuts next year", "description": "The central bank kept its benchmark interest rate unchanged and said inflation is cooling enough to consider cuts next year.", "minutesAgo": 30},
-  {"story": "rates", "sourceId": "nypost", "title": "Central bank keeps interest rates high as families struggle with prices", "description": "Borrowers get no relief as the central bank holds interest rates steady for another quarter.", "minutesAgo": 45},
-  {"story": "rates", "sourceId": "npr", "title": "Central bank holds interest rates, points to cooling inflation", "description": "Policymakers left interest rates unchanged and pointed to slowing inflation and a softer job market.", "minutesAgo": 60},
-  {"story": "rates", "sourceId": "washtimes", "title": "Central bank interest rates unchanged as inflation lingers", "description": "The central bank held interest rates steady, saying inflation remains above target.", "minutesAgo": 75},
-  {"story": "rates", "sourceId": "thehill", "title": "Central bank holds interest rates steady for third straight meeting", "description": "The decision to hold interest rates was unanimous, officials said.", "minutesAgo": 80},
-  {"story": "floods", "sourceId": "aljazeera", "title": "Floods displace thousands across coastal region after record rainfall", "description": "Rescue teams are evacuating residents as record rainfall causes floods across the coastal region.", "minutesAgo": 120},
-  {"story": "floods", "sourceId": "cnn", "title": "Record rainfall floods coastal region, thousands displaced", "description": "Thousands have been displaced by floods after record rainfall, officials said, linking the severity to climate change.", "minutesAgo": 150},
-  {"story": "floods", "sourceId": "huffpost", "title": "Coastal floods displace thousands as record rainfall hits region", "description": "Aid groups say the floods after record rainfall are the worst in decades.", "minutesAgo": 170},
-  {"story": "floods", "sourceId": "independent", "title": "Thousands displaced by coastal floods after record rainfall", "description": "Emergency shelters are full after floods and record rainfall swept through the region.", "minutesAgo": 200},
-  {"story": "campus", "sourceId": "dailywire", "title": "Universities face scrutiny over campus free speech policies", "description": "Lawmakers questioned university leaders over campus free speech policies and speaker cancellations.", "minutesAgo": 200},
-  {"story": "campus", "sourceId": "federalist", "title": "Campus free speech hearing exposes university double standards", "description": "University leaders struggled to defend campus free speech policies at a hearing on speaker cancellations.", "minutesAgo": 230},
-  {"story": "campus", "sourceId": "nationalreview", "title": "University leaders grilled on campus free speech policies", "description": "The hearing on campus free speech policies focused on cancelled speaker events.", "minutesAgo": 260},
-  {"story": "campus", "sourceId": "dailycaller", "title": "Lawmakers press universities on campus free speech policies", "description": "University presidents faced questions on campus free speech policies and disciplinary records.", "minutesAgo": 280},
-  {"story": "trade", "sourceId": "scmp", "title": "Trade talks resume between major economies over tariffs on electric vehicles", "description": "Negotiators met to discuss tariffs on electric vehicles and battery exports.", "minutesAgo": 300},
-  {"story": "trade", "sourceId": "toi", "title": "Electric vehicles tariffs top agenda as trade talks resume", "description": "Officials say tariffs on electric vehicles will be the main issue at the resumed trade talks.", "minutesAgo": 320},
-  {"story": "trade", "sourceId": "telegraph", "title": "Trade talks on electric vehicles tariffs resume amid tensions", "description": "Trade talks resumed with tariffs on electric vehicles and critical minerals on the table.", "minutesAgo": 340},
-  {"story": "trade", "sourceId": "wapo", "title": "Electric vehicles tariffs: what is at stake as trade talks resume", "description": "The trade talks over tariffs on electric vehicles could reshape global supply chains.", "minutesAgo": 360}
+  {
+    "story": "climate",
+    "sourceId": "bbc",
+    "title": "Global climate summit agrees on new methane reduction target",
+    "description": "Delegates at the climate summit agreed a target to cut methane emissions 40% by 2035, with funding for monitoring satellites.",
+    "minutesAgo": 40
+  },
+  {
+    "story": "climate",
+    "sourceId": "guardian",
+    "title": "Climate summit methane target hailed as breakthrough but critics say it falls short",
+    "description": "Campaigners welcomed the methane reduction target agreed at the climate summit but warned it lacks enforcement.",
+    "minutesAgo": 55
+  },
+  {
+    "story": "climate",
+    "sourceId": "nyt",
+    "title": "Nations at climate summit commit to methane emissions cut",
+    "description": "Negotiators reached a deal on methane emissions after two weeks of talks at the climate summit.",
+    "minutesAgo": 70
+  },
+  {
+    "story": "climate",
+    "sourceId": "fox",
+    "title": "Climate summit methane deal could raise energy costs, industry warns",
+    "description": "Energy producers said the methane target agreed at the climate summit could push up prices for consumers.",
+    "minutesAgo": 90
+  },
+  {
+    "story": "climate",
+    "sourceId": "dw",
+    "title": "Climate summit: countries agree methane emissions target",
+    "description": "The agreement on methane emissions includes a fund for developing countries to monitor leaks.",
+    "minutesAgo": 100
+  },
+  {
+    "story": "climate",
+    "sourceId": "wsj",
+    "title": "Methane target agreed at climate summit puts pressure on gas producers",
+    "description": "Gas producers face new monitoring requirements under the methane deal reached at the climate summit.",
+    "minutesAgo": 120
+  },
+  {
+    "story": "rates",
+    "sourceId": "cnbc",
+    "title": "Central bank holds interest rates steady, signals cuts next year",
+    "description": "The central bank kept its benchmark interest rate unchanged and said inflation is cooling enough to consider cuts next year.",
+    "minutesAgo": 30
+  },
+  {
+    "story": "rates",
+    "sourceId": "nypost",
+    "title": "Central bank keeps interest rates high as families struggle with prices",
+    "description": "Borrowers get no relief as the central bank holds interest rates steady for another quarter.",
+    "minutesAgo": 45
+  },
+  {
+    "story": "rates",
+    "sourceId": "npr",
+    "title": "Central bank holds interest rates, points to cooling inflation",
+    "description": "Policymakers left interest rates unchanged and pointed to slowing inflation and a softer job market.",
+    "minutesAgo": 60
+  },
+  {
+    "story": "rates",
+    "sourceId": "washtimes",
+    "title": "Central bank interest rates unchanged as inflation lingers",
+    "description": "The central bank held interest rates steady, saying inflation remains above target.",
+    "minutesAgo": 75
+  },
+  {
+    "story": "rates",
+    "sourceId": "thehill",
+    "title": "Central bank holds interest rates steady for third straight meeting",
+    "description": "The decision to hold interest rates was unanimous, officials said.",
+    "minutesAgo": 80
+  },
+  {
+    "story": "floods",
+    "sourceId": "aljazeera",
+    "title": "Floods displace thousands across coastal region after record rainfall",
+    "description": "Rescue teams are evacuating residents as record rainfall causes floods across the coastal region.",
+    "minutesAgo": 120
+  },
+  {
+    "story": "floods",
+    "sourceId": "cnn",
+    "title": "Record rainfall floods coastal region, thousands displaced",
+    "description": "Thousands have been displaced by floods after record rainfall, officials said, linking the severity to climate change.",
+    "minutesAgo": 150
+  },
+  {
+    "story": "floods",
+    "sourceId": "huffpost",
+    "title": "Coastal floods displace thousands as record rainfall hits region",
+    "description": "Aid groups say the floods after record rainfall are the worst in decades.",
+    "minutesAgo": 170
+  },
+  {
+    "story": "floods",
+    "sourceId": "independent",
+    "title": "Thousands displaced by coastal floods after record rainfall",
+    "description": "Emergency shelters are full after floods and record rainfall swept through the region.",
+    "minutesAgo": 200
+  },
+  {
+    "story": "campus",
+    "sourceId": "dailywire",
+    "title": "Universities face scrutiny over campus free speech policies",
+    "description": "Lawmakers questioned university leaders over campus free speech policies and speaker cancellations.",
+    "minutesAgo": 200
+  },
+  {
+    "story": "campus",
+    "sourceId": "federalist",
+    "title": "Campus free speech hearing exposes university double standards",
+    "description": "University leaders struggled to defend campus free speech policies at a hearing on speaker cancellations.",
+    "minutesAgo": 230
+  },
+  {
+    "story": "campus",
+    "sourceId": "nationalreview",
+    "title": "University leaders grilled on campus free speech policies",
+    "description": "The hearing on campus free speech policies focused on cancelled speaker events.",
+    "minutesAgo": 260
+  },
+  {
+    "story": "campus",
+    "sourceId": "dailycaller",
+    "title": "Lawmakers press universities on campus free speech policies",
+    "description": "University presidents faced questions on campus free speech policies and disciplinary records.",
+    "minutesAgo": 280
+  },
+  {
+    "story": "trade",
+    "sourceId": "scmp",
+    "title": "Trade talks resume between major economies over tariffs on electric vehicles",
+    "description": "Negotiators met to discuss tariffs on electric vehicles and battery exports.",
+    "minutesAgo": 300
+  },
+  {
+    "story": "trade",
+    "sourceId": "toi",
+    "title": "Electric vehicles tariffs top agenda as trade talks resume",
+    "description": "Officials say tariffs on electric vehicles will be the main issue at the resumed trade talks.",
+    "minutesAgo": 320
+  },
+  {
+    "story": "trade",
+    "sourceId": "telegraph",
+    "title": "Trade talks on electric vehicles tariffs resume amid tensions",
+    "description": "Trade talks resumed with tariffs on electric vehicles and critical minerals on the table.",
+    "minutesAgo": 340
+  },
+  {
+    "story": "trade",
+    "sourceId": "wapo",
+    "title": "Electric vehicles tariffs: what is at stake as trade talks resume",
+    "description": "The trade talks over tariffs on electric vehicles could reshape global supply chains.",
+    "minutesAgo": 360
+  },
+  {
+    "story": "border",
+    "sourceId": "khmertimes",
+    "title": "Cambodia and Thailand agree to reopen border checkpoints after months of closure",
+    "description": "The Commerce Ministry said the main crossings in Banteay Meanchey and Oddar Meanchey will reopen next week, restoring trade routes closed since clashes earlier this year.",
+    "minutesAgo": 95
+  },
+  {
+    "story": "border",
+    "sourceId": "phnompenhpost",
+    "title": "Border checkpoints with Thailand to reopen next week, ministry says",
+    "description": "Cambodia's Commerce Ministry confirmed that border checkpoints closed since the clashes will reopen, with traders and cross-border workers expected to benefit immediately.",
+    "minutesAgo": 110
+  },
+  {
+    "story": "border",
+    "sourceId": "camboja",
+    "title": "Traders welcome reopening of Cambodia-Thailand border crossings",
+    "description": "Market vendors in Poipet said the reopening of the border checkpoints with Thailand could not come soon enough after months of lost income.",
+    "minutesAgo": 130
+  },
+  {
+    "story": "border",
+    "sourceId": "aljazeera",
+    "title": "Cambodia and Thailand to reopen border crossings closed since clashes",
+    "description": "The two governments agreed to reopen key border checkpoints next week, months after deadly clashes forced their closure and displaced thousands.",
+    "minutesAgo": 150
+  },
+  {
+    "story": "border",
+    "sourceId": "bbc",
+    "title": "Cambodia and Thailand to reopen border crossings after talks",
+    "description": "Border checkpoints between Cambodia and Thailand will reopen next week after talks, officials in Phnom Penh said, months after clashes closed them.",
+    "minutesAgo": 160
+  },
+  {
+    "story": "km-floods",
+    "sourceId": "rfakhmer",
+    "title": "រដ្ឋាភិបាលប្រកាសផែនការជួយកសិករដែលរងគ្រោះដោយទឹកជំនន់នៅខេត្តពោធិ៍សាត់",
+    "description": "ក្រសួងកសិកម្មបាននិយាយថា កសិករជាង 5,000 គ្រួសារនឹងទទួលបានគ្រាប់ពូជ និងជីជាបន្ទាន់ បន្ទាប់ពីទឹកជំនន់បានបំផ្លាញស្រូវរាប់ពាន់ហិកតា។",
+    "minutesAgo": 70
+  },
+  {
+    "story": "km-fuel",
+    "sourceId": "rfakhmer",
+    "title": "តម្លៃសាំងនៅកម្ពុជាឡើងថ្លៃជាលើកទីពីរក្នុងខែនេះ",
+    "description": "ក្រសួងពាណិជ្ជកម្មបានកំណត់តម្លៃលក់រាយថ្មី ខណៈអ្នកបើកបររថយន្តដឹកជញ្ជូនបារម្ភពីការចំណាយដែលកើនឡើង។",
+    "minutesAgo": 200
+  },
+  {
+    "story": "km-land",
+    "sourceId": "rfakhmer",
+    "title": "សាលាដំបូងរាជធានីភ្នំពេញកំណត់កាលបរិច្ឆេទសវនាការក្តីជម្លោះដីធ្លីនៅខេត្តកំពង់ស្ពឺ",
+    "description": "អ្នកភូមិជាង 100 គ្រួសារទាមទារសំណងសមរម្យ បន្ទាប់ពីក្រុមហ៊ុនមួយបានឈូសឆាយដីស្រែរបស់ពួកគេ។",
+    "minutesAgo": 340
+  }
 ]
