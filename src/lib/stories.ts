@@ -31,6 +31,8 @@ const MAX_KHMER_ARTICLES = 60;
 const MAX_LOCAL_ARTICLES = 40;
 /** Stop starting LLM calls after this long so a refresh fits the 300s route limit. */
 const LLM_TIME_BUDGET_MS = 200_000;
+/** Stories local to these countries are summarized by Claude whatever their rank: the Khmer edition's readers come first. */
+const PRIORITY_REGIONS = ["KH"];
 /** A story needs at least this many outlets (rated or not) to make the feed. */
 const MIN_SOURCES = 2;
 export const REFRESH_SECONDS = 30 * 60;
@@ -91,6 +93,17 @@ async function loadArticles(): Promise<LoadedArticles> {
 }
 
 type Draft = Omit<Story, "summary">;
+
+/**
+ * Which stories get a Claude summary: the top `maxStories` by coverage, plus
+ * every story local to a priority country and every blindspot, since those
+ * rarely reach the top but are what the Local and Blindspot pages show.
+ */
+export function shouldSummarize(draft: Pick<Draft, "regions" | "blindspot">, index: number, maxStories = MAX_STORIES): boolean {
+  if (index < maxStories) return true;
+  if (draft.blindspot) return true;
+  return draft.regions.some((r) => PRIORITY_REGIONS.includes(r));
+}
 
 /** The most distinctive terms of a story, from the TF-IDF vectors of its articles. */
 function topTerms(vectors: Array<Map<string, number> | undefined>, n = 5): string[] {
@@ -177,8 +190,9 @@ async function attachDemoKhmer(stories: Story[], demoKeys: Map<string, string>):
 /**
  * Runs the whole pipeline: fetch feeds, store articles, cluster, summarize.
  * With a database, articles accumulate across runs and summaries are reused,
- * so Claude is only called for new or substantially grown stories. At most
- * MAX_STORIES calls are made per refresh, and none after the time budget.
+ * so Claude is only called for new or substantially grown stories. The top
+ * MAX_STORIES stories, Cambodia-local stories and blindspots get Claude
+ * summaries; the rest are extractive. No call starts after the time budget.
  */
 export async function refreshFeed(): Promise<StoryFeed> {
   const db = await getDb();
@@ -196,7 +210,7 @@ export async function refreshFeed(): Promise<StoryFeed> {
 
   let stories = await mapWithConcurrency(drafts, 4, async (draft, index): Promise<Story> => {
     const previous = stored.get(draft.id);
-    const useLlm = llmAvailable && index < MAX_STORIES && Date.now() < deadline;
+    const useLlm = llmAvailable && shouldSummarize(draft, index) && Date.now() < deadline;
     // Never replace a stored LLM summary with an extractive one.
     if (canReuseSummary(previous, draft.articles.length, llmAvailable) || (previous?.summary.generated && !useLlm)) {
       return finishStory(draft, previous!.summary);

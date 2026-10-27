@@ -55,9 +55,11 @@ next refresh. Article titles and outlet names stay in their original language.
 | Store | `src/lib/db.ts` | Postgres keeps articles, per-story summaries (jsonb, new fields optional), and the latest feed snapshot. |
 | Serve | `src/lib/stories.ts`, `src/app/[locale]/` | Pages read the latest snapshot; `/api/cron/refresh` rebuilds it every 30 min. |
 
-Per refresh, the top `MAX_STORIES` (30) stories get a Claude summary and the rest of the
-`MAX_FEED_STORIES` (80) get an extractive one, so category pages have depth at a bounded
-cost. Summaries are reused until a story grows by half. Calls stop after 200s so a refresh
+Per refresh, the top `MAX_STORIES` (30) stories, every story local to Cambodia and every
+blindspot get a Claude summary; the rest of the `MAX_FEED_STORIES` (80) get an extractive
+one, so category pages have depth at a bounded cost. Khmer text that strays into another
+script (the model occasionally mixes in Thai) is retried once and otherwise dropped, so the
+site shows English with a note rather than garbled Khmer. Summaries are reused until a story grows by half. Calls stop after 200s so a refresh
 fits the 300s route limit. Old snapshots and summaries without the new fields still load.
 
 ## Sources
