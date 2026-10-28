@@ -1,7 +1,7 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { isKhmerText, looksGarbledKhmer } from "./khmer";
-import { getClient, SUMMARY_MODEL } from "./summarize";
+import { CALL_TIMEOUT_MS, callOptions, getClient, SUMMARY_MODEL } from "./summarize";
 import type { Article, ArticleTranslation } from "./types";
 
 /** Translation is simpler than summarizing; TRANSLATE_MODEL can point it at a cheaper model. */
@@ -50,22 +50,25 @@ function formatBatch(articles: Article[]): string {
  * articles per call. An article whose Khmer fails the script check comes back
  * with empty strings, so the caller stores that the attempt was made and the
  * article stays in English. A failed call leaves its batch out of the result,
- * to be tried again on a later refresh.
+ * to be tried again on a later refresh, and no call runs past `deadline`.
  */
-export async function translateArticles(articles: Article[]): Promise<Map<string, ArticleTranslation>> {
+export async function translateArticles(articles: Article[], deadline = Date.now() + 2 * CALL_TIMEOUT_MS): Promise<Map<string, ArticleTranslation>> {
   const result = new Map<string, ArticleTranslation>();
   const anthropic = getClient();
   if (!anthropic || articles.length === 0) return result;
-  for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+  for (let i = 0; i < articles.length && Date.now() < deadline; i += BATCH_SIZE) {
     const batch = articles.slice(i, i + BATCH_SIZE);
     try {
-      const response = await anthropic.messages.parse({
-        model: MODEL,
-        max_tokens: 16000,
-        system: SYSTEM,
-        output_config: { effort: "low", format: zodOutputFormat(BatchSchema) },
-        messages: [{ role: "user", content: formatBatch(batch) }],
-      });
+      const response = await anthropic.messages.parse(
+        {
+          model: MODEL,
+          max_tokens: 16000,
+          system: SYSTEM,
+          output_config: { effort: "low", format: zodOutputFormat(BatchSchema) },
+          messages: [{ role: "user", content: formatBatch(batch) }],
+        },
+        callOptions(deadline),
+      );
       if (response.stop_reason === "refusal" || !response.parsed_output) continue;
       const items = new Map(response.parsed_output.items.map((item) => [item.id, item]));
       for (const article of batch) {

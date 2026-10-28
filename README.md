@@ -59,8 +59,9 @@ Per refresh, the top `MAX_STORIES` (80, so every story in the feed by default) s
 every story local to Cambodia and every blindspot get a Claude summary; any beyond that
 (`MAX_FEED_STORIES`, also 80) get an extractive one, so cost stays bounded. Khmer text that strays into another
 script (the model occasionally mixes in Thai) is retried once and otherwise dropped, so the
-site shows English with a note rather than garbled Khmer. Summaries are reused until a story grows by half. Calls stop after 200s so a refresh
-fits the 300s route limit. Old snapshots and summaries without the new fields still load.
+site shows English with a note rather than garbled Khmer. Summaries are reused until a story grows by half. No call starts after 180s and none runs
+past 270s, counted from the start of the refresh, so a refresh fits the 300s route limit;
+stories left over are summarized on the next refresh. Old snapshots and summaries without the new fields still load.
 
 The Local page for Cambodia also lists reports that only one Cambodian outlet carried, which
 never become stories. Their titles and blurbs are translated into Khmer in one batched Claude

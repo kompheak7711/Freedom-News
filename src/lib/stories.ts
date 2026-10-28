@@ -33,7 +33,13 @@ const MAX_KHMER_ARTICLES = 60;
 /** Per country, the latest articles from outlets based there, for the Local page. */
 const MAX_LOCAL_ARTICLES = 40;
 /** Stop starting LLM calls after this long so a refresh fits the 300s route limit. */
-const LLM_TIME_BUDGET_MS = 200_000;
+/**
+ * A refresh must answer within the route's 300s. No model call starts after
+ * LLM_TIME_BUDGET_MS, and none runs past REFRESH_BUDGET_MS, measured from the
+ * start of the refresh so feed fetching counts too.
+ */
+const LLM_TIME_BUDGET_MS = 180_000;
+const REFRESH_BUDGET_MS = 270_000;
 /** Stories local to these countries are summarized by Claude whatever their rank: the Khmer edition's readers come first. */
 const PRIORITY_REGIONS = ["KH"];
 /** A story needs at least this many outlets (rated or not) to make the feed. */
@@ -199,9 +205,13 @@ async function attachDemoKhmer(stories: Story[], demoKeys: Map<string, string>):
  * With a database, articles accumulate across runs and summaries are reused,
  * so Claude is only called for new or substantially grown stories. The top
  * MAX_STORIES stories, Cambodia-local stories and blindspots get Claude
- * summaries; the rest are extractive. No call starts after the time budget.
+ * summaries; the rest are extractive. No call starts after the time budget,
+ * and none outlives the refresh budget.
  */
 export async function refreshFeed(): Promise<StoryFeed> {
+  const started = Date.now();
+  const softDeadline = started + LLM_TIME_BUDGET_MS;
+  const hardDeadline = started + REFRESH_BUDGET_MS;
   const db = await getDb();
   const loaded = await loadArticles();
   let articles = loaded.articles;
@@ -213,16 +223,17 @@ export async function refreshFeed(): Promise<StoryFeed> {
   const drafts = buildStories(articles);
   const stored = db ? await loadSummaries(db, drafts.map((d) => d.id)) : new Map<string, StoredSummary>();
   const llmAvailable = Boolean(process.env.ANTHROPIC_API_KEY);
-  const deadline = Date.now() + LLM_TIME_BUDGET_MS;
 
   let stories = await mapWithConcurrency(drafts, 4, async (draft, index): Promise<Story> => {
     const previous = stored.get(draft.id);
-    const useLlm = llmAvailable && shouldSummarize(draft, index) && Date.now() < deadline;
+    const useLlm = llmAvailable && shouldSummarize(draft, index) && Date.now() < softDeadline;
     // Never replace a stored LLM summary with an extractive one.
     if (canReuseSummary(previous, draft.articles.length, llmAvailable) || (previous?.summary.generated && !useLlm)) {
       return finishStory(draft, previous!.summary);
     }
-    const summary = useLlm ? await summarizeStory(draft.articles) : extractiveSummary(draft.articles);
+    const summary = useLlm ? await summarizeStory(draft.articles, hardDeadline) : extractiveSummary(draft.articles);
+    // A call that timed out or failed gives an extractive summary; a stored LLM one is still better.
+    if (!summary.generated && previous?.summary.generated) return finishStory(draft, previous.summary);
     if (db) await saveSummary(db, draft.id, draft.articles.length, summary);
     return finishStory(draft, summary);
   });
@@ -233,7 +244,12 @@ export async function refreshFeed(): Promise<StoryFeed> {
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .slice(0, MAX_KHMER_ARTICLES);
 
-  let localArticles = await translateLocalArticles(db, collectLocalArticles(articles), llmAvailable && !loaded.demo && Date.now() < deadline);
+  let localArticles = await translateLocalArticles(
+    db,
+    collectLocalArticles(articles),
+    llmAvailable && !loaded.demo && Date.now() < softDeadline,
+    hardDeadline,
+  );
   if (loaded.demo && loaded.demoKeys) localArticles = await attachDemoArticleKhmer(localArticles, loaded.demoKeys);
 
   const feed: StoryFeed = {
@@ -258,6 +274,7 @@ async function translateLocalArticles(
   db: Awaited<ReturnType<typeof getDb>>,
   local: Record<string, Article[]>,
   llmAvailable: boolean,
+  deadline: number,
 ): Promise<Record<string, Article[]>> {
   const out = { ...local };
   for (const region of PRIORITY_REGIONS) {
@@ -266,7 +283,7 @@ async function translateLocalArticles(
     const stored = db ? await loadTranslations(db, articles.map((a) => a.id)) : new Map<string, ArticleTranslation>();
     const pending = llmAvailable ? articles.filter((a) => !stored.has(a.id)) : [];
     if (pending.length > 0) {
-      const fresh = await translateArticles(pending);
+      const fresh = await translateArticles(pending, deadline);
       if (db) await saveTranslations(db, fresh);
       for (const [id, t] of fresh) stored.set(id, t);
     }
