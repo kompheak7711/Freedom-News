@@ -1,15 +1,24 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getSource } from "@/lib/sources";
 import { isKhmerText } from "@/lib/khmer";
 import type { Article } from "@/lib/types";
 import { BiasLabel, OutletAvatar, TimeAgo } from "./bits";
 
-/** One article with its outlet and rating, for article lists and search results. */
+/**
+ * One article with its outlet and rating, for article lists and search
+ * results. On Khmer pages an article with a stored translation shows it;
+ * one without is shown in English with an "EN" tag, like story cards.
+ */
 export async function ArticleRow({ article }: { article: Article }) {
-  const t = await getTranslations("common");
+  const locale = await getLocale();
+  const t = await getTranslations();
   const source = getSource(article.sourceId);
   const name = source?.name ?? article.sourceId;
-  const lang = isKhmerText(article.title) ? "km" : undefined;
+  const translated = locale === "km" && Boolean(article.titleKm);
+  const title = translated ? article.titleKm! : article.title;
+  const description = translated ? (article.descriptionKm ?? "") : article.description;
+  const textLang = translated || isKhmerText(title) ? "km" : "en";
+  const lang = textLang !== locale ? textLang : undefined;
   return (
     <li className="flex gap-3 border-b border-line py-3 last:border-b-0">
       <OutletAvatar name={name} />
@@ -18,6 +27,11 @@ export async function ArticleRow({ article }: { article: Article }) {
           <span className="font-medium text-ink">{name}</span>
           {source && <BiasLabel bias={source.bias} compact />}
           <TimeAgo iso={article.publishedAt} />
+          {locale === "km" && textLang === "en" && (
+            <span className="chip text-[10px] uppercase" title={t("story.khmerMissing")} lang="en">
+              EN
+            </span>
+          )}
         </div>
         <a
           href={article.url}
@@ -25,13 +39,13 @@ export async function ArticleRow({ article }: { article: Article }) {
           rel="noopener noreferrer"
           className="mt-1 block font-semibold hover:underline"
           lang={lang}
-          title={t("articleFrom", { outlet: name })}
+          title={t("common.articleFrom", { outlet: name })}
         >
-          {article.title}
+          {title}
         </a>
-        {article.description && (
+        {description && (
           <p className="mt-1 line-clamp-2 text-sm text-muted" lang={lang}>
-            {article.description}
+            {description}
           </p>
         )}
       </div>

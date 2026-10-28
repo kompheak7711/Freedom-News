@@ -9,9 +9,11 @@ import {
   loadLatestSnapshot,
   loadRecentArticles,
   loadSummaries,
+  loadTranslations,
   saveArticles,
   saveSnapshot,
   saveSummary,
+  saveTranslations,
   type StoredSummary,
 } from "./db";
 import { articleId, ingestAll } from "./ingest";
@@ -19,10 +21,11 @@ import { getSource } from "./sources";
 import { articleLang } from "./khmer";
 import { detectRegions, LOCATIONS } from "./regions";
 import { extractiveSummary, khmerLooksValid, mapWithConcurrency, sanitizeKhmer, summarizeStory } from "./summarize";
-import type { Article, Category, Side, Story, StorySummary } from "./types";
+import { applyTranslations, translateArticles } from "./translate";
+import type { Article, ArticleTranslation, Category, Side, Story, StorySummary } from "./types";
 
 /** How many stories get an LLM summary per refresh. The rest get extractive summaries. */
-const MAX_STORIES = Number(process.env.MAX_STORIES ?? 30);
+const MAX_STORIES = Number(process.env.MAX_STORIES ?? 80);
 /** How many stories the snapshot keeps, so category pages have depth. */
 const MAX_FEED_STORIES = Number(process.env.MAX_FEED_STORIES ?? 80);
 /** Khmer-language articles are listed, not clustered; keep the latest few dozen. */
@@ -230,10 +233,13 @@ export async function refreshFeed(): Promise<StoryFeed> {
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .slice(0, MAX_KHMER_ARTICLES);
 
+  let localArticles = await translateLocalArticles(db, collectLocalArticles(articles), llmAvailable && !loaded.demo && Date.now() < deadline);
+  if (loaded.demo && loaded.demoKeys) localArticles = await attachDemoArticleKhmer(localArticles, loaded.demoKeys);
+
   const feed: StoryFeed = {
     stories,
     khmerArticles,
-    localArticles: collectLocalArticles(articles),
+    localArticles,
     generatedAt: new Date().toISOString(),
     articleCount: articles.length,
     failedSources: loaded.failedSources,
@@ -241,6 +247,43 @@ export async function refreshFeed(): Promise<StoryFeed> {
   };
   if (db) await saveSnapshot(db, feed.generatedAt, feed);
   return feed;
+}
+
+/**
+ * Gives the single-outlet reports of priority countries Khmer titles and
+ * descriptions for the Local page. Each article is translated once and the
+ * result stored, so a refresh only pays for articles it has not seen before.
+ */
+async function translateLocalArticles(
+  db: Awaited<ReturnType<typeof getDb>>,
+  local: Record<string, Article[]>,
+  llmAvailable: boolean,
+): Promise<Record<string, Article[]>> {
+  const out = { ...local };
+  for (const region of PRIORITY_REGIONS) {
+    const articles = local[region] ?? [];
+    if (articles.length === 0) continue;
+    const stored = db ? await loadTranslations(db, articles.map((a) => a.id)) : new Map<string, ArticleTranslation>();
+    const pending = llmAvailable ? articles.filter((a) => !stored.has(a.id)) : [];
+    if (pending.length > 0) {
+      const fresh = await translateArticles(pending);
+      if (db) await saveTranslations(db, fresh);
+      for (const [id, t] of fresh) stored.set(id, t);
+    }
+    out[region] = applyTranslations(articles, stored);
+  }
+  return out;
+}
+
+type DemoArticleKhmer = Record<string, ArticleTranslation>;
+
+/** Demo mode: Khmer for the fixture's single-outlet reports, keyed by story like the summaries. */
+async function attachDemoArticleKhmer(local: Record<string, Article[]>, demoKeys: Map<string, string>): Promise<Record<string, Article[]>> {
+  const file = path.join(process.cwd(), "fixtures", "demo-khmer-articles.json");
+  const khmer = JSON.parse(await readFile(file, "utf8")) as DemoArticleKhmer;
+  const translations = new Map<string, ArticleTranslation>();
+  for (const [id, key] of demoKeys) if (khmer[key]) translations.set(id, khmer[key]);
+  return Object.fromEntries(Object.entries(local).map(([region, articles]) => [region, applyTranslations(articles, translations)]));
 }
 
 /** The latest English-language articles from each country's own feeds. */

@@ -46,6 +46,19 @@ export interface Article {
   url: string;
   publishedAt: string; // ISO 8601
   imageUrl?: string;
+  /** Khmer title and description, present once the article has been translated (see ArticleTranslation). */
+  titleKm?: string;
+  descriptionKm?: string;
+}
+
+/**
+ * A stored Khmer rendering of an article's title and description, written
+ * once per article. Empty strings record an attempt whose Khmer failed the
+ * script check: the article stays in English and is not retried.
+ */
+export interface ArticleTranslation {
+  titleKm: string;
+  descriptionKm: string;
 }
 
 export interface Coverage {
