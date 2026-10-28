@@ -5,9 +5,11 @@ import {
   loadLatestSnapshot,
   loadRecentArticles,
   loadSummaries,
+  loadTranslations,
   saveArticles,
   saveSnapshot,
   saveSummary,
+  saveTranslations,
 } from "../db";
 import { canReuseSummary, refreshFeed, type StoryFeed } from "../stories";
 import type { StorySummary } from "../types";
@@ -67,7 +69,7 @@ describe.skipIf(!url)("postgres storage", () => {
   beforeAll(async () => {
     process.env.DATABASE_URL = url;
     const db = (await getDb())!;
-    await db`truncate articles, story_summaries, feed_snapshots`;
+    await db`truncate articles, story_summaries, feed_snapshots, article_translations`;
   });
   afterAll(async () => {
     await closeDb();
@@ -100,6 +102,19 @@ describe.skipIf(!url)("postgres storage", () => {
     expect(await loadLatestSnapshot(db)).toEqual({ hello: "world" });
   });
 
+  it("stores article translations once, including failed attempts", async () => {
+    const db = (await getDb())!;
+    await saveTranslations(db, new Map([
+      ["a1", { titleKm: "ចំណងជើង", descriptionKm: "ពិពណ៌នា" }],
+      ["a2", { titleKm: "", descriptionKm: "" }],
+    ]));
+    await saveTranslations(db, new Map([["a1", { titleKm: "ចំណងជើងថ្មី", descriptionKm: "" }]]));
+    const stored = await loadTranslations(db, ["a1", "a2", "missing"]);
+    expect(stored.get("a1")).toEqual({ titleKm: "ចំណងជើងថ្មី", descriptionKm: "" });
+    expect(stored.get("a2")).toEqual({ titleKm: "", descriptionKm: "" }); // tried, stays English
+    expect(stored.has("missing")).toBe(false);
+  });
+
   it("refreshFeed persists summaries and a snapshot", async () => {
     process.env.NEWS_DEMO = "1";
     const feed = await refreshFeed();
@@ -110,5 +125,7 @@ describe.skipIf(!url)("postgres storage", () => {
     expect(stored.size).toBe(6);
     const snapshot = await loadLatestSnapshot<StoryFeed>(db);
     expect(snapshot?.generatedAt).toBe(feed.generatedAt);
+    // The demo fixture's single-outlet Cambodian report carries its Khmer translation.
+    expect(feed.localArticles.KH.some((a) => a.titleKm?.startsWith("រាជធានីភ្នំពេញ"))).toBe(true);
   });
 });

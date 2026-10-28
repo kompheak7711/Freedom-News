@@ -11,6 +11,7 @@ import { OUTLETS, SOURCES, getSource, outletOf, sideOf } from "../sources";
 import { buildStories, collectLocalArticles, localArticles, normalizeFeed, shouldSummarize, type StoryFeed } from "../stories";
 import { extractiveSummary, hasKhmer, khmerLooksValid, sanitizeKhmer } from "../summarize";
 import { localizedSummary } from "../text";
+import { applyTranslations, translationLooksValid } from "../translate";
 import type { Article, Story, StorySummary } from "../types";
 
 const now = Date.parse("2026-10-26T12:00:00Z");
@@ -388,5 +389,32 @@ describe("preferences", () => {
     const feed = feedOf([rates, floods, sport]);
     expect(personalize(feed, { topics: ["world"], outlets: ["bbc"] }).map((s) => s.id)).toEqual(["floods", "rates"]);
     expect(personalize(feed, { topics: [], outlets: [] })).toEqual([]);
+  });
+});
+
+describe("article translations", () => {
+  const art = (id: string): Article => ({ id, sourceId: "phnompenhpost", title: `Title ${id}`, description: "Desc", url: `https://x/${id}`, publishedAt: "2026-10-27T00:00:00Z" });
+
+  it("accepts Khmer and rejects empty, English or garbled text", () => {
+    expect(translationLooksValid({ titleKm: "រាជធានីភ្នំពេញបន្ថែមរថយន្តក្រុងអគ្គិសនី", descriptionKm: "" })).toBe(true);
+    expect(translationLooksValid({ titleKm: "រាជធានីភ្នំពេញ", descriptionKm: "សាលារាជធានីបានឱ្យដឹងថា រថយន្តក្រុង 40 គ្រឿង" })).toBe(true);
+    expect(translationLooksValid({ titleKm: "", descriptionKm: "សាលារាជធានី" })).toBe(false);
+    expect(translationLooksValid({ titleKm: "Phnom Penh adds buses", descriptionKm: "" })).toBe(false);
+    expect(translationLooksValid({ titleKm: "ហារ\u0E35 ខេន", descriptionKm: "" })).toBe(false); // Thai vowel
+    expect(translationLooksValid({ titleKm: "រាជធានីភ្នំពេញ", descriptionKm: "ธนาคารกลาง" })).toBe(false);
+  });
+
+  it("attaches stored translations and leaves failed ones in English", () => {
+    const translations = new Map([
+      ["a", { titleKm: "ចំណងជើង ក", descriptionKm: "ពិពណ៌នា ក" }],
+      ["b", { titleKm: "ចំណងជើង ខ", descriptionKm: "" }],
+      ["c", { titleKm: "", descriptionKm: "" }], // a failed attempt
+    ]);
+    const [a, b, c, d] = applyTranslations([art("a"), art("b"), art("c"), art("d")], translations);
+    expect([a.titleKm, a.descriptionKm]).toEqual(["ចំណងជើង ក", "ពិពណ៌នា ក"]);
+    expect([b.titleKm, b.descriptionKm]).toEqual(["ចំណងជើង ខ", undefined]);
+    expect(c.titleKm).toBeUndefined();
+    expect(d.titleKm).toBeUndefined();
+    expect(a.title).toBe("Title a"); // the English stays for the English pages
   });
 });

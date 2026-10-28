@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import type { Article, StorySummary } from "./types";
+import type { Article, ArticleTranslation, StorySummary } from "./types";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -27,6 +27,13 @@ create table if not exists feed_snapshots (
   id bigserial primary key,
   generated_at timestamptz not null,
   data jsonb not null
+);
+
+create table if not exists article_translations (
+  article_id text primary key,
+  title_km text not null,
+  description_km text not null default '',
+  updated_at timestamptz not null default now()
 );
 `;
 
@@ -127,6 +134,26 @@ export async function saveSnapshot<T>(db: Sql, generatedAt: string, data: T): Pr
 export async function loadLatestSnapshot<T>(db: Sql): Promise<T | null> {
   const rows = await db<{ data: T }[]>`select data from feed_snapshots order by generated_at desc limit 1`;
   return rows[0]?.data ?? null;
+}
+
+export async function loadTranslations(db: Sql, articleIds: string[]): Promise<Map<string, ArticleTranslation>> {
+  if (articleIds.length === 0) return new Map();
+  const rows = await db<{ article_id: string; title_km: string; description_km: string }[]>`
+    select article_id, title_km, description_km from article_translations where article_id in ${db(articleIds)}
+  `;
+  return new Map(rows.map((r) => [r.article_id, { titleKm: r.title_km, descriptionKm: r.description_km }]));
+}
+
+export async function saveTranslations(db: Sql, translations: Map<string, ArticleTranslation>): Promise<void> {
+  if (translations.size === 0) return;
+  const rows = [...translations].map(([id, t]) => ({ article_id: id, title_km: t.titleKm, description_km: t.descriptionKm }));
+  await db`
+    insert into article_translations ${db(rows)}
+    on conflict (article_id) do update set
+      title_km = excluded.title_km,
+      description_km = excluded.description_km,
+      updated_at = now()
+  `;
 }
 
 /** Case-insensitive search over every stored article's title and description. */

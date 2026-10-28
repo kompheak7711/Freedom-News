@@ -51,16 +51,22 @@ next refresh. Article titles and outlet names stay in their original language.
 | Group | `src/lib/cluster.ts` | TF-IDF vectors of title + description, single-pass clustering plus a merge pass. English only; Khmer-language articles are listed separately. |
 | Classify | `src/lib/categories.ts`, `src/lib/regions.ts` | Keyword classifier plus section-feed hints gives every story a category; country feeds and place names give it `regions`. Claude's category wins when available. |
 | Measure | `src/lib/coverage.ts` | Counts distinct outlets per side (several feeds of one outlet count once), keeps unrated outlets out of the percentages, detects blindspots. |
-| Summarize | `src/lib/summarize.ts` | Claude writes a neutral headline, summary, left/right framing, the category, and Khmer versions of all text in one structured call. |
-| Store | `src/lib/db.ts` | Postgres keeps articles, per-story summaries (jsonb, new fields optional), and the latest feed snapshot. |
+| Summarize | `src/lib/summarize.ts`, `src/lib/translate.ts` | Claude writes a neutral headline, summary, left/right framing, the category, and Khmer versions of all text in one structured call. Single-outlet Cambodian reports get their title and blurb translated in one batched call. |
+| Store | `src/lib/db.ts` | Postgres keeps articles, per-story summaries (jsonb, new fields optional), per-article Khmer translations, and the latest feed snapshot. |
 | Serve | `src/lib/stories.ts`, `src/app/[locale]/` | Pages read the latest snapshot; `/api/cron/refresh` rebuilds it every 30 min. |
 
-Per refresh, the top `MAX_STORIES` (30) stories, every story local to Cambodia and every
-blindspot get a Claude summary; the rest of the `MAX_FEED_STORIES` (80) get an extractive
-one, so category pages have depth at a bounded cost. Khmer text that strays into another
+Per refresh, the top `MAX_STORIES` (80, so every story in the feed by default) stories,
+every story local to Cambodia and every blindspot get a Claude summary; any beyond that
+(`MAX_FEED_STORIES`, also 80) get an extractive one, so cost stays bounded. Khmer text that strays into another
 script (the model occasionally mixes in Thai) is retried once and otherwise dropped, so the
 site shows English with a note rather than garbled Khmer. Summaries are reused until a story grows by half. Calls stop after 200s so a refresh
 fits the 300s route limit. Old snapshots and summaries without the new fields still load.
+
+The Local page for Cambodia also lists reports that only one Cambodian outlet carried, which
+never become stories. Their titles and blurbs are translated into Khmer in one batched Claude
+call per refresh and stored in `article_translations`, so each article is translated once; a
+translation that fails the script check is recorded and the article stays in English with an
+"EN" tag. `TRANSLATE_MODEL` picks the model for these calls (default: `SUMMARY_MODEL`).
 
 ## Sources
 
@@ -91,7 +97,7 @@ at `/km`.
 1. Import the repo on vercel.com.
 2. Add a Postgres database (Vercel Storage → Neon, or neon.tech). This sets `DATABASE_URL`.
 3. Add environment variables `ANTHROPIC_API_KEY` and `CRON_SECRET` (any long random string), then deploy.
-   Optional: `SUMMARY_MODEL`, `MAX_STORIES`, `MAX_FEED_STORIES`, `NEXT_PUBLIC_SITE_URL`.
+   Optional: `SUMMARY_MODEL`, `TRANSLATE_MODEL`, `MAX_STORIES`, `MAX_FEED_STORIES`, `NEXT_PUBLIC_SITE_URL`.
 4. In the GitHub repo, add Actions secrets `APP_URL` (your Vercel URL) and `CRON_SECRET` (same value).
    `.github/workflows/refresh.yml` then refreshes the news every 30 minutes. Vercel's own cron
    (`vercel.json`) runs once a day as a backup, since the free plan allows no more.
