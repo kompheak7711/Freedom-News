@@ -10,7 +10,9 @@ import { CATEGORIES, type Article, type StorySummary } from "./types";
 export const SUMMARY_MODEL = process.env.SUMMARY_MODEL ?? "claude-opus-5-5";
 const MODEL = SUMMARY_MODEL;
 /** One summary call must not eat the whole refresh window (300s on Vercel). */
-const CALL_TIMEOUT_MS = 90_000;
+export const CALL_TIMEOUT_MS = 90_000;
+/** A garbled-Khmer retry is only worth starting with this much of the deadline left. */
+const MIN_RETRY_MS = 20_000;
 /** After Khmer fails the script check twice, wait this long before spending calls on it again. */
 const KHMER_RETRY_MS = 6 * 60 * 60 * 1000;
 
@@ -48,6 +50,16 @@ export function getClient(): Anthropic | null {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   client ??= new Anthropic({ timeout: CALL_TIMEOUT_MS, maxRetries: 1 });
   return client;
+}
+
+/**
+ * Request options for one model call that must be over by `deadline`: the
+ * timeout is the time left (at most CALL_TIMEOUT_MS) and there is no retry,
+ * so a slow call fails and is tried again on the next refresh instead of
+ * running the route past its limit.
+ */
+export function callOptions(deadline: number): { timeout: number; maxRetries: number } {
+  return { timeout: Math.max(1_000, Math.min(CALL_TIMEOUT_MS, deadline - Date.now())), maxRetries: 0 };
 }
 
 function formatArticles(articles: Article[]): string {
@@ -108,14 +120,17 @@ export function extractiveSummary(articles: Article[]): StorySummary {
   };
 }
 
-async function callModel(anthropic: Anthropic, articles: Article[], retry: boolean): Promise<StorySummary | null> {
-  const response = await anthropic.messages.parse({
-    model: MODEL,
-    max_tokens: 4000,
-    system: retry ? `${SYSTEM}\n\n${RETRY_NOTE}` : SYSTEM,
-    output_config: { effort: retry ? "medium" : "low", format: zodOutputFormat(SummarySchema) },
-    messages: [{ role: "user", content: formatArticles(articles) }],
-  });
+async function callModel(anthropic: Anthropic, articles: Article[], retry: boolean, deadline: number): Promise<StorySummary | null> {
+  const response = await anthropic.messages.parse(
+    {
+      model: MODEL,
+      max_tokens: 4000,
+      system: retry ? `${SYSTEM}\n\n${RETRY_NOTE}` : SYSTEM,
+      output_config: { effort: retry ? "medium" : "low", format: zodOutputFormat(SummarySchema) },
+      messages: [{ role: "user", content: formatArticles(articles) }],
+    },
+    callOptions(deadline),
+  );
   if (response.stop_reason === "refusal" || !response.parsed_output) return null;
   return { ...response.parsed_output, generated: true };
 }
@@ -124,18 +139,20 @@ async function callModel(anthropic: Anthropic, articles: Article[], retry: boole
  * One structured call writes the English and Khmer summaries. Garbled Khmer
  * (another script mixed in) gets one retry at higher effort; if that fails
  * too, the English summary is kept and the Khmer dropped, so the site shows
- * the English text with a note instead of unreadable Khmer.
+ * the English text with a note instead of unreadable Khmer. No call runs
+ * past `deadline` (a timestamp); a call that times out falls back to the
+ * extractive summary and the story is tried again on a later refresh.
  */
-export async function summarizeStory(articles: Article[]): Promise<StorySummary> {
+export async function summarizeStory(articles: Article[], deadline = Date.now() + 2 * CALL_TIMEOUT_MS): Promise<StorySummary> {
   const anthropic = getClient();
   if (!anthropic) return extractiveSummary(articles);
 
   try {
-    let summary = await callModel(anthropic, articles, false);
+    let summary = await callModel(anthropic, articles, false, deadline);
     if (!summary) return extractiveSummary(articles);
-    if (!khmerLooksValid(summary)) {
+    if (!khmerLooksValid(summary) && deadline - Date.now() > MIN_RETRY_MS) {
       console.warn("[summarize] Khmer text failed the script check; retrying once");
-      const again = await callModel(anthropic, articles, true);
+      const again = await callModel(anthropic, articles, true, deadline);
       if (again && khmerLooksValid(again)) summary = again;
     }
     return sanitizeKhmer(summary, new Date(Date.now() + KHMER_RETRY_MS));

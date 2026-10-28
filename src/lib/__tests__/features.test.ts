@@ -9,7 +9,7 @@ import { detectRegions } from "../regions";
 import { queryTerms, searchFeed } from "../search";
 import { OUTLETS, SOURCES, getSource, outletOf, sideOf } from "../sources";
 import { buildStories, collectLocalArticles, localArticles, normalizeFeed, shouldSummarize, type StoryFeed } from "../stories";
-import { extractiveSummary, hasKhmer, khmerLooksValid, sanitizeKhmer } from "../summarize";
+import { CALL_TIMEOUT_MS, callOptions, extractiveSummary, hasKhmer, khmerLooksValid, sanitizeKhmer } from "../summarize";
 import { localizedSummary } from "../text";
 import { applyTranslations, translationLooksValid } from "../translate";
 import type { Article, Story, StorySummary } from "../types";
@@ -416,5 +416,16 @@ describe("article translations", () => {
     expect(c.titleKm).toBeUndefined();
     expect(d.titleKm).toBeUndefined();
     expect(a.title).toBe("Title a"); // the English stays for the English pages
+  });
+});
+
+describe("callOptions", () => {
+  it("caps a call's timeout at the time left before the deadline, with no retry", () => {
+    const now = Date.now();
+    expect(callOptions(now + 10 * 60_000)).toEqual({ timeout: CALL_TIMEOUT_MS, maxRetries: 0 });
+    const short = callOptions(now + 5_000);
+    expect(short.timeout).toBeGreaterThan(3_000);
+    expect(short.timeout).toBeLessThanOrEqual(5_000);
+    expect(callOptions(now - 1).timeout).toBe(1_000); // already past: fail fast rather than hang
   });
 });
