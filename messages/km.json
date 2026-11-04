@@ -24,7 +24,8 @@
     "closeMenu": "បិទម៉ឺនុយ",
     "language": "ភាសា",
     "edition": "ការបោះពុម្ពជាភាសា{language}",
-    "skipToContent": "រំលងទៅមាតិកាសំខាន់"
+    "skipToContent": "រំលងទៅមាតិកាសំខាន់",
+    "searchShort": "ស្វែងរកព័ត៌មាន ប្រធានបទ ឬស្ថាប័ន"
   },
   "categories": {
     "all": "ទាំងអស់",
@@ -79,7 +80,7 @@
     "topNews": "ព័ត៌មានសំខាន់ៗ",
     "latest": "ព័ត៌មានថ្មីៗ",
     "dailyBriefing": "សង្ខេបប្រចាំថ្ងៃ",
-    "briefingStats": "ព័ត៌មាន {stories} • អត្ថបទ {articles} • អាន {minutes} នាទី",
+    "briefingStats": "ព័ត៌មាន {stories} · អត្ថបទ {articles} · អាន {minutes} នាទី",
     "briefingIntro": "ព័ត៌មានដែលត្រូវបានរាយការណ៍ទូលំទូលាយបំផុតថ្ងៃនេះ ក្នុងការអានតែមួយ។",
     "blindspotSection": "ចំណុចខ្វាក់",
     "moreIn": "ព័ត៌មាន{category}បន្ថែម",

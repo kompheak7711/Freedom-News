@@ -135,7 +135,7 @@ export default async function StoryPage({ params }: { params: Params }) {
             </div>
           </dl>
           <h3 className="mt-5 text-sm font-bold uppercase tracking-wide">{t("story.biasDistribution")}</h3>
-          {dominant && <p className="mt-1 text-sm text-muted">{t("story.mostly", { pct: dominant.pct, side: t(`bias.${dominant.side}`) })}</p>}
+          {dominant && <p className="mt-1 text-sm text-muted">{t("story.mostly", { pct: dominant.pct, side: t(`bias.${dominant.side}`).toLowerCase() })}</p>}
           <div className="mt-3">
             <CoverageBar coverage={story.coverage} size="lg" showLegend />
           </div>

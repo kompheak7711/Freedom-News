@@ -20,8 +20,18 @@ export function SignInButton() {
 
   return (
     <>
-      <button type="button" className="btn btn-primary whitespace-nowrap" onClick={() => dialog.current?.showModal()}>
-        {t("signIn")}
+      {/* Icon-only on narrow phones so the header never overflows (the Khmer label is wide). */}
+      <button
+        type="button"
+        className="btn btn-primary whitespace-nowrap max-[479px]:px-2.5"
+        aria-label={t("signIn")}
+        onClick={() => dialog.current?.showModal()}
+      >
+        <svg className="min-[480px]:hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </svg>
+        <span className="max-[479px]:hidden">{t("signIn")}</span>
       </button>
       <dialog ref={dialog} className="m-auto w-[min(90vw,24rem)] rounded-xl border border-line bg-card p-0 text-ink backdrop:bg-black/50">
         <div className="p-5">
