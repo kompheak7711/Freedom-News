@@ -51,7 +51,7 @@ export async function StoryCard({ story, variant = "grid", rank }: { story: Stor
   const coverageLine = (
     <p className="text-xs text-muted">
       {dominant
-        ? `${t("coverage.dominant", { pct: dominant.pct, side: t(`bias.${dominant.side}`) })}: ${t("coverage.sources", { count: sources })}`
+        ? `${t("coverage.sources", { count: sources })} · ${t("coverage.dominant", { pct: dominant.pct, side: t(`bias.${dominant.side}`).toLowerCase() })}`
         : t("coverage.sources", { count: sources })}
     </p>
   );

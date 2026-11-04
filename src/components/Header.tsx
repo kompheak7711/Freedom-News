@@ -10,7 +10,7 @@ import { SignInButton } from "./SignInButton";
 export async function Header() {
   const t = await getTranslations("nav");
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-card/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-card">
       <div className="container-page flex h-14 items-center gap-3 md:h-16">
         <MobileMenu />
         <Link href="/" className="flex items-center gap-2 text-xl font-black tracking-tight" aria-label="Freedom News">
